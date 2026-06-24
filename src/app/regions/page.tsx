@@ -8,21 +8,21 @@ import { Search, Plus, Trash2, Pencil, User, ClipboardList } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
 const countyData = [
-  { name: "Montserrado", sites: 264, techs: 16, inspections: 126 },
-  { name: "Nimba",       sites: 59,  techs: 3,  inspections: 32 },
-  { name: "Bong",        sites: 46,  techs: 2,  inspections: 8 },
-  { name: "Margibi",     sites: 38,  techs: 4,  inspections: 15 },
-  { name: "Lofa",        sites: 32,  techs: 3,  inspections: 11 },
-  { name: "Grand Bassa", sites: 28,  techs: 2,  inspections: 9 },
-  { name: "River Gee",   sites: 22,  techs: 2,  inspections: 5 },
-  { name: "Grand Kru",   sites: 18,  techs: 1,  inspections: 4 },
-  { name: "Grand Gedeh", sites: 17,  techs: 2,  inspections: 6 },
-  { name: "Maryland",    sites: 16,  techs: 1,  inspections: 3 },
-  { name: "Grand Cape",  sites: 14,  techs: 1,  inspections: 4 },
-  { name: "Sinoe",       sites: 11,  techs: 1,  inspections: 2 },
-  { name: "Gbarpolu",    sites: 8,   techs: 1,  inspections: 2 },
-  { name: "Bomi",        sites: 7,   techs: 1,  inspections: 1 },
-  { name: "River Cess",  sites: 5,   techs: 1,  inspections: 0 },
+  { name: "Montserrado",    sites: 264, techs: 16, inspections: 126 },
+  { name: "Nimba",          sites: 59,  techs: 3,  inspections: 32 },
+  { name: "Bong",           sites: 46,  techs: 2,  inspections: 8 },
+  { name: "Margibi",        sites: 38,  techs: 4,  inspections: 15 },
+  { name: "Lofa",           sites: 32,  techs: 3,  inspections: 11 },
+  { name: "Grand Bassa",    sites: 28,  techs: 2,  inspections: 9 },
+  { name: "River Gee",      sites: 22,  techs: 2,  inspections: 5 },
+  { name: "Grand Kru",      sites: 18,  techs: 1,  inspections: 4 },
+  { name: "Grand Gedeh",    sites: 17,  techs: 2,  inspections: 6 },
+  { name: "Maryland",       sites: 16,  techs: 1,  inspections: 3 },
+  { name: "Grand Cape Mount", sites: 14, techs: 1, inspections: 4 },
+  { name: "Sinoe",          sites: 11,  techs: 1,  inspections: 2 },
+  { name: "Gbarpolu",       sites: 8,   techs: 1,  inspections: 2 },
+  { name: "Bomi",           sites: 7,   techs: 1,  inspections: 1 },
+  { name: "River Cess",     sites: 5,   techs: 1,  inspections: 0 },
 ]
 
 const totalSites = countyData.reduce((s, c) => s + c.sites, 0)

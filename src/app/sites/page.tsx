@@ -68,7 +68,7 @@ const countyData = [
   { name: "Grand Kru",   sites: 18,  techs: 1,  inspections: 4 },
   { name: "Grand Gedeh", sites: 17,  techs: 2,  inspections: 6 },
   { name: "Maryland",    sites: 16,  techs: 1,  inspections: 3 },
-  { name: "Grand Cape",  sites: 14,  techs: 1,  inspections: 4 },
+  { name: "Grand Cape Mount", sites: 14, techs: 1, inspections: 4 },
   { name: "Sinoe",       sites: 11,  techs: 1,  inspections: 2 },
   { name: "Gbarpolu",    sites: 8,   techs: 1,  inspections: 2 },
   { name: "Bomi",        sites: 7,   techs: 1,  inspections: 1 },
