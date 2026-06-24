@@ -77,6 +77,219 @@ const typeBadge = (t: string) => (
 
 type Tab = "sites" | "regions" | "technicians" | "users" | "reports" | "checklists"
 
+// ── Technicians sub-component with Add modal + Excel import ──────────────────
+
+const LIBERIA_COUNTIES = [
+  "Montserrado","Nimba","Bong","Margibi","Lofa","Grand Bassa",
+  "River Gee","Grand Kru","Grand Gedeh","Maryland","Grand Cape Mount",
+  "Sinoe","Gbarpolu","Bomi","River Cess",
+]
+
+type Tech = { id: string; name: string; region: string; sites: number; status: string; phone: string }
+
+const emptyForm = () => ({ name: "", region: "", phone: "", status: "active", sites: 0 })
+
+function TechniciansTab() {
+  const [techList, setTechList] = useState<Tech[]>([...technicians])
+  const [search, setSearch] = useState("")
+  const [showModal, setShowModal] = useState(false)
+  const [editTarget, setEditTarget] = useState<Tech | null>(null)
+  const [form, setForm] = useState(emptyForm())
+  const [importError, setImportError] = useState("")
+  const [importSuccess, setImportSuccess] = useState("")
+
+  const nextId = () => `T-${String(techList.length + 1).padStart(3, "0")}`
+
+  const openAdd = () => { setEditTarget(null); setForm(emptyForm()); setShowModal(true) }
+  const openEdit = (t: Tech) => { setEditTarget(t); setForm({ name: t.name, region: t.region, phone: t.phone, status: t.status, sites: t.sites }); setShowModal(true) }
+  const closeModal = () => { setShowModal(false); setEditTarget(null) }
+
+  const handleSave = () => {
+    if (!form.name.trim() || !form.region || !form.phone.trim()) return
+    if (editTarget) {
+      setTechList(techList.map(t => t.id === editTarget.id ? { ...t, ...form } : t))
+    } else {
+      setTechList([...techList, { id: nextId(), ...form }])
+    }
+    closeModal()
+  }
+
+  const handleDelete = (id: string) => setTechList(techList.filter(t => t.id !== id))
+
+  const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(""); setImportSuccess("")
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
+      setImportError("Please upload an .xlsx, .xls, or .csv file.")
+      e.target.value = ""
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) { setImportError("File appears empty or has no data rows."); return }
+        const rows = lines.slice(1) // skip header
+        const imported: Tech[] = rows.map((row, i) => {
+          const cols = row.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+          return {
+            id: `T-${String(techList.length + i + 1).padStart(3, "0")}`,
+            name: cols[0] || "",
+            region: cols[1] || "",
+            phone: cols[2] || "",
+            status: cols[3] || "active",
+            sites: parseInt(cols[4] || "0") || 0,
+          }
+        }).filter(t => t.name)
+        setTechList(prev => [...prev, ...imported])
+        setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported successfully.`)
+      } catch {
+        setImportError("Failed to parse file. Ensure it is CSV format.")
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ""
+  }
+
+  const downloadTemplate = () => {
+    const csv = "Name,Region,Phone,Status,Sites\nJohn Doe,Montserrado,+231 770 000 001,active,3\n"
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a"); a.href = url; a.download = "technicians_template.csv"; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const filtered = techList.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.region.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input className="pl-9" placeholder="Search technicians..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div className="flex-1" />
+
+        {/* Import feedback */}
+        {importError && <p className="text-xs text-red-600">{importError}</p>}
+        {importSuccess && <p className="text-xs text-green-600">{importSuccess}</p>}
+
+        {/* Excel import */}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <Upload className="h-4 w-4" /> Import Excel
+            <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={handleExcel} />
+          </label>
+          <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline whitespace-nowrap">
+            Download template
+          </button>
+        </div>
+
+        <Button size="sm" className="gap-1.5 bg-red-600 hover:bg-red-700 text-white" onClick={openAdd}>
+          <Plus className="h-4 w-4" /> Add Technician
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">ID</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Region</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Sites</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Phone</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No technicians found.</td></tr>
+            )}
+            {filtered.map(t => (
+              <tr key={t.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-mono text-xs text-blue-600">{t.id}</td>
+                <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
+                <td className="px-4 py-3 text-xs text-gray-500">{t.region}</td>
+                <td className="px-4 py-3 text-xs text-gray-700">{t.sites}</td>
+                <td className="px-4 py-3 text-xs text-gray-500">{t.phone}</td>
+                <td className="px-4 py-3">{statusBadge(t.status)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(t)} className="p-1.5 text-gray-300 hover:text-blue-600 rounded"><Pencil className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => handleDelete(t.id)} className="p-1.5 text-gray-300 hover:text-red-600 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add / Edit modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-5">{editTarget ? "Edit Technician" : "Add Technician"}</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Full Name <span className="text-red-500">*</span></label>
+                <Input className="mt-1" placeholder="e.g. John Doe" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Region <span className="text-red-500">*</span></label>
+                <select
+                  className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.region}
+                  onChange={e => setForm({ ...form, region: e.target.value })}
+                >
+                  <option value="">Select county...</option>
+                  {LIBERIA_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Phone <span className="text-red-500">*</span></label>
+                <Input className="mt-1" placeholder="+231 770 000 000" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Status</label>
+                <select
+                  className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.status}
+                  onChange={e => setForm({ ...form, status: e.target.value })}
+                >
+                  <option value="active">Active</option>
+                  <option value="on_site">On Site</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Number of Sites</label>
+                <Input className="mt-1" type="number" min={0} value={form.sites} onChange={e => setForm({ ...form, sites: parseInt(e.target.value) || 0 })} />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="outline" className="flex-1" onClick={closeModal}>Cancel</Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleSave}
+                disabled={!form.name.trim() || !form.region || !form.phone.trim()}
+              >
+                {editTarget ? "Save Changes" : "Add Technician"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SitesPage() {
   const [tab, setTab] = useState<Tab>("sites")
   const [search, setSearch] = useState("")
@@ -324,51 +537,7 @@ export default function SitesPage() {
 
         {/* ── TECHNICIANS TAB ── */}
         {tab === "technicians" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input className="pl-9" placeholder="Search technicians..." value={search} onChange={e => setSearch(e.target.value)} />
-              </div>
-              <div className="flex-1" />
-              <Button size="sm" className="gap-1.5 bg-red-600 hover:bg-red-700 text-white">
-                <Plus className="h-4 w-4" /> Add Technician
-              </Button>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Region</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Sites</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Phone</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {technicians.filter(t => t.name.toLowerCase().includes(search.toLowerCase())).map(t => (
-                    <tr key={t.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs text-blue-600">{t.id}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{t.region}</td>
-                      <td className="px-4 py-3 text-xs text-gray-700">{t.sites}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{t.phone}</td>
-                      <td className="px-4 py-3">{statusBadge(t.status)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <button className="p-1.5 text-gray-300 hover:text-blue-600 rounded"><Pencil className="h-3.5 w-3.5" /></button>
-                          <button className="p-1.5 text-gray-300 hover:text-red-600 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <TechniciansTab />
         )}
 
         {/* ── USERS TAB ── */}
