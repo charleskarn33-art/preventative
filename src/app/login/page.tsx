@@ -1,0 +1,154 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Activity, Eye, EyeOff, Zap, Shield, BarChart3 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+
+export default function LoginPage() {
+  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({ email: "", password: "" })
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    // Simulate auth — replace with Supabase auth
+    await new Promise((r) => setTimeout(r, 800))
+    router.push("/dashboard")
+  }
+
+  const demoLogins = [
+    { role: "Super Admin", email: "admin@telcocare.com", color: "bg-blue-600" },
+    { role: "Manager", email: "manager@telcocare.com", color: "bg-purple-600" },
+    { role: "Supervisor", email: "supervisor@telcocare.com", color: "bg-green-600" },
+    { role: "Technician", email: "tech@telcocare.com", color: "bg-amber-600" },
+  ]
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Left panel */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-12 text-white">
+        <div className="flex items-center gap-3 mb-16">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
+            <Activity className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xl font-bold">TelcoCare PM</p>
+            <p className="text-xs text-blue-400">Preventive Maintenance Platform</p>
+          </div>
+        </div>
+
+        <div className="flex-1">
+          <h2 className="text-4xl font-bold leading-tight mb-4">
+            Telecom Tower PM<br />
+            <span className="text-blue-400">Made Effortless</span>
+          </h2>
+          <p className="text-slate-400 text-lg mb-12">
+            Enterprise-grade preventive maintenance management for tower operations teams.
+          </p>
+
+          <div className="space-y-4">
+            {[
+              { icon: Zap, title: "Automated PM Scheduling", desc: "Daily, weekly & monthly PM auto-generated" },
+              { icon: Shield, title: "Digital PM Checklists", desc: "Generator, DC, Battery, Solar & RMS checklists" },
+              { icon: BarChart3, title: "Compliance Tracking", desc: "Real-time PM compliance dashboards & reports" },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600/30">
+                  <Icon className="h-4 w-4 text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{title}</p>
+                  <p className="text-xs text-slate-400">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-500 mt-8">
+          &copy; 2024 TelcoCare PM. Enterprise Telecom Maintenance Platform.
+        </p>
+      </div>
+
+      {/* Right panel */}
+      <div className="flex flex-1 items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">TelcoCare PM</span>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+            <p className="text-sm text-gray-500 mt-1">Sign in to your account to continue</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@telcocare.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+
+          <div className="mt-8">
+            <p className="text-xs text-gray-500 text-center mb-3">Quick access — demo accounts</p>
+            <div className="grid grid-cols-2 gap-2">
+              {demoLogins.map((demo) => (
+                <button
+                  key={demo.role}
+                  onClick={() => {
+                    setForm({ email: demo.email, password: "demo123" })
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2.5 text-left text-xs hover:bg-gray-50 transition-colors"
+                >
+                  <div className={`h-5 w-5 rounded-full ${demo.color} flex items-center justify-center text-white text-[9px] font-bold shrink-0`}>
+                    {demo.role[0]}
+                  </div>
+                  <span className="font-medium text-gray-700">{demo.role}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
