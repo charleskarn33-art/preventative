@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { Search, Plus, MapPin, Zap, LayoutGrid, Pencil, Trash2, Calendar, User, Upload, FileText, ClipboardList, CheckSquare } from "lucide-react"
+import { Search, Plus, MapPin, Zap, LayoutGrid, Pencil, Trash2, Calendar, User, Upload, FileText, ClipboardList, CheckSquare, Radio } from "lucide-react"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
 const sites = [
   { id: 1418, name: "Baiyema", region: "Bong", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 14, techs: "Kollie, Aaron Gotogo" },
@@ -56,6 +57,24 @@ const checklists = [
 
 const regions = [...new Set(sites.map(s => s.region))].sort()
 
+const countyData = [
+  { name: "Montserrado", sites: 264, techs: 16, inspections: 126 },
+  { name: "Nimba",       sites: 59,  techs: 3,  inspections: 32 },
+  { name: "Bong",        sites: 46,  techs: 2,  inspections: 8 },
+  { name: "Margibi",     sites: 38,  techs: 4,  inspections: 15 },
+  { name: "Lofa",        sites: 32,  techs: 3,  inspections: 11 },
+  { name: "Grand Bassa", sites: 28,  techs: 2,  inspections: 9 },
+  { name: "River Gee",   sites: 22,  techs: 2,  inspections: 5 },
+  { name: "Grand Kru",   sites: 18,  techs: 1,  inspections: 4 },
+  { name: "Grand Gedeh", sites: 17,  techs: 2,  inspections: 6 },
+  { name: "Maryland",    sites: 16,  techs: 1,  inspections: 3 },
+  { name: "Grand Cape",  sites: 14,  techs: 1,  inspections: 4 },
+  { name: "Sinoe",       sites: 11,  techs: 1,  inspections: 2 },
+  { name: "Gbarpolu",    sites: 8,   techs: 1,  inspections: 2 },
+  { name: "Bomi",        sites: 7,   techs: 1,  inspections: 1 },
+  { name: "River Cess",  sites: 5,   techs: 1,  inspections: 0 },
+]
+
 const statusBadge = (s: string) => {
   const map: Record<string, string> = {
     active: "bg-green-100 text-green-700",
@@ -77,7 +96,7 @@ const typeBadge = (t: string) => (
   <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{t}</span>
 )
 
-type Tab = "sites" | "technicians" | "users" | "reports" | "checklists"
+type Tab = "sites" | "regions" | "technicians" | "users" | "reports" | "checklists"
 
 export default function SitesPage() {
   const [tab, setTab] = useState<Tab>("sites")
@@ -104,6 +123,7 @@ export default function SitesPage() {
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: "sites", label: "Sites", icon: <LayoutGrid className="h-3.5 w-3.5" /> },
+    { key: "regions", label: "Regions", icon: <MapPin className="h-3.5 w-3.5" /> },
     { key: "technicians", label: "Technicians", icon: <User className="h-3.5 w-3.5" /> },
     { key: "users", label: "Users", icon: <User className="h-3.5 w-3.5" /> },
     { key: "reports", label: "Reports", icon: <FileText className="h-3.5 w-3.5" /> },
@@ -231,6 +251,94 @@ export default function SitesPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── REGIONS TAB ── */}
+        {tab === "regions" && (
+          <div className="space-y-6">
+            {/* Stat cards */}
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { value: countyData.length, label: "Regions Covered", icon: (
+                  <svg className="h-8 w-8 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                    <circle cx="12" cy="9" r="2.5"/>
+                  </svg>
+                )},
+                { value: countyData.reduce((s, c) => s + c.sites, 0), label: "Total Sites", icon: (
+                  <svg className="h-8 w-8 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 2l-2 4h4L12 2z"/><path d="M10 6L6 18h12L14 6"/><line x1="12" y1="6" x2="12" y2="18"/>
+                    <path d="M8 10c-2 0-3 1-3 1M16 10c2 0 3 1 3 1"/>
+                  </svg>
+                )},
+                { value: countyData.reduce((s, c) => s + c.techs, 0), label: "Technicians", icon: (
+                  <svg className="h-8 w-8 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="9" cy="7" r="3"/><circle cx="17" cy="8" r="2.5"/>
+                    <path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M17 13c2.2 0 4 1.8 4 4"/>
+                  </svg>
+                )},
+              ].map(({ value, label, icon }) => (
+                <div key={label} className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col items-center justify-center text-center">
+                  {icon}
+                  <p className="text-3xl font-bold text-gray-900 mt-3">{value}</p>
+                  <p className="text-sm text-gray-500 mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Bar chart */}
+            <div className="bg-white rounded-xl border border-gray-100 p-6">
+              <h2 className="text-sm font-semibold text-gray-800 mb-4">Sites &amp; Inspections by Region</h2>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={countyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={10}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+                    formatter={(value) => value === "sites" ? "Sites" : "PM"} />
+                  <Bar dataKey="sites" fill="#1e3a5f" radius={[3, 3, 0, 0]} name="sites" />
+                  <Bar dataKey="inspections" fill="#dc2626" radius={[3, 3, 0, 0]} name="PM" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* All counties grid */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                All {countyData.length} Counties
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {countyData.map(county => (
+                  <div key={county.name} className="bg-white rounded-xl border border-gray-100 px-5 py-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0" />
+                        <span className="font-semibold text-gray-900 text-sm">{county.name}</span>
+                      </div>
+                      <button className="text-gray-300 hover:text-red-500 transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Radio className="h-3 w-3" />
+                        <strong className="text-gray-800">{county.sites}</strong> sites
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <strong className="text-gray-800">{county.techs}</strong> techs
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <ClipboardList className="h-3 w-3" />
+                        <strong className="text-gray-800">{county.inspections}</strong> inspections
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
