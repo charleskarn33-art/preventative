@@ -39,14 +39,14 @@ export default function LoginPage() {
           </div>
           <div>
             <p className="text-xl font-bold">TelcoCare PM</p>
-            <p className="text-xs text-blue-400">Preventive Maintenance Platform</p>
+            <p className="text-xs text-red-400">Preventive Maintenance Platform</p>
           </div>
         </div>
 
         <div className="flex-1">
           <h2 className="text-4xl font-bold leading-tight mb-4">
             Telecom Tower PM<br />
-            <span className="text-blue-400">Made Effortless</span>
+            <span className="text-red-400">Made Effortless</span>
           </h2>
           <p className="text-slate-400 text-lg mb-12">
             Enterprise-grade preventive maintenance management for tower operations teams.
@@ -59,8 +59,8 @@ export default function LoginPage() {
               { icon: BarChart3, title: "Compliance Tracking", desc: "Real-time PM compliance dashboards & reports" },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600/30">
-                  <Icon className="h-4 w-4 text-blue-400" />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600/30">
+                  <Icon className="h-4 w-4 text-red-400" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">{title}</p>

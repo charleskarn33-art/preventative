@@ -1,7 +1,6 @@
 "use client"
 
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -66,7 +65,7 @@ const reportTypes = [
 export default function ReportsPage() {
   return (
     <AppLayout>
-      <Header title="Reports & Analytics" subtitle="PM compliance, performance metrics and operational insights" />
+      
       <div className="p-6 space-y-6">
         {/* Report generators */}
         <div>

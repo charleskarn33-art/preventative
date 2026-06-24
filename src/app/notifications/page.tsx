@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -91,7 +90,7 @@ export default function NotificationsPage() {
 
   return (
     <AppLayout>
-      <Header title="Notifications" subtitle="System alerts and PM activity notifications" />
+      
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

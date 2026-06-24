@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -48,7 +47,7 @@ export default function TechniciansPage() {
 
   return (
     <AppLayout>
-      <Header title="Technician Management" subtitle="Monitor field technicians and PM completion performance" />
+      
       <div className="p-6 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3">

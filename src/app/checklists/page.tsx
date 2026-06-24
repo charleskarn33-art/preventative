@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -276,7 +275,7 @@ export default function ChecklistsPage() {
 
   return (
     <AppLayout>
-      <Header title="PM Checklist" subtitle="WO-2024-002 • NRB-045 Westlands Tower • Weekly PM" />
+      
       <div className="p-6 space-y-4">
         {/* Work order info banner */}
         <Card className="border-blue-200 bg-blue-50">

@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -58,7 +57,7 @@ export default function SitesPage() {
 
   return (
     <AppLayout>
-      <Header title="Tower Sites" subtitle="Manage and monitor all telecom tower sites" />
+      
       <div className="p-6 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3">

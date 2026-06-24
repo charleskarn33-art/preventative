@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,7 +28,7 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <Header title="Settings" subtitle="Platform configuration and system preferences" />
+      
       <div className="p-6">
         <Tabs defaultValue="organization" className="space-y-4">
           <TabsList>
