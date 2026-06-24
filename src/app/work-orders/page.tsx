@@ -2,178 +2,162 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, ClipboardList, Calendar, User, Radio, ChevronRight, Eye } from "lucide-react"
+import { Search, Plus, MapPin, Trash2, ChevronRight } from "lucide-react"
 
 const workOrders = [
-  { id: "WO-2024-001", site: "KSM-001 Kisumu North", region: "Nyanza", type: "Monthly PM", tech: "John Odhiambo", status: "pending_approval", priority: "high", due: "2024-01-15", created: "2024-01-10" },
-  { id: "WO-2024-002", site: "NRB-045 Westlands", region: "Nairobi", type: "Weekly PM", tech: "Mary Wanjiku", status: "in_progress", priority: "medium", due: "2024-01-16", created: "2024-01-12" },
-  { id: "WO-2024-003", site: "MSA-012 Mombasa CBD", region: "Coast", type: "Daily PM", tech: "Peter Kamau", status: "completed", priority: "low", due: "2024-01-14", created: "2024-01-14" },
-  { id: "WO-2024-004", site: "ELD-003 Eldoret South", region: "Rift Valley", type: "Monthly PM", tech: "Grace Akinyi", status: "overdue", priority: "critical", due: "2024-01-10", created: "2024-01-05" },
-  { id: "WO-2024-005", site: "NKR-007 Nakuru Central", region: "Rift Valley", type: "Weekly PM", tech: "David Mwangi", status: "assigned", priority: "medium", due: "2024-01-17", created: "2024-01-13" },
-  { id: "WO-2024-006", site: "NYR-002 Nyeri Hill", region: "Central", type: "Daily PM", tech: "James Njoroge", status: "open", priority: "low", due: "2024-01-17", created: "2024-01-15" },
-  { id: "WO-2024-007", site: "HOM-005 Homa Bay Central", region: "Nyanza", type: "Monthly PM", tech: "Alex Ochieng", status: "in_progress", priority: "high", due: "2024-01-18", created: "2024-01-14" },
-  { id: "WO-2024-008", site: "KRN-018 Kirinyaga East", region: "Central", type: "Weekly PM", tech: "Susan Wahu", status: "overdue", priority: "critical", due: "2024-01-08", created: "2024-01-03" },
+  { id: 1418, site: "Baiyema", region: "Bong", tech: "Adam Kiazolu", status: "completed", date: "2026-06-24", progress: 0 },
+  { id: 1443, site: "Hotel Africa 2", region: "Montserrado", tech: "Mohammed Konneh", status: "completed", date: "2026-06-24", progress: 100 },
+  { id: 1440, site: "King Farm", region: "Montserrado", tech: "Jacob Fayiah", status: "completed", date: "2026-06-10", progress: 100 },
+  { id: 1508, site: "Banjor Road", region: "Montserrado", tech: "Mohammed Konneh", status: "completed", date: "2026-06-23", progress: 100 },
+  { id: 1391, site: "Ganta Junction", region: "Nimba", tech: "John Doe", status: "in_progress", date: "2026-06-22", progress: 65 },
+  { id: 1376, site: "Buchanan Central", region: "Grand Bassa", tech: "Peter Smith", status: "in_progress", date: "2026-06-21", progress: 40 },
+  { id: 1355, site: "Kakata Tower", region: "Margibi", tech: "Grace Williams", status: "pending_approval", date: "2026-06-20", progress: 100 },
+  { id: 1342, site: "Robertsport", region: "Grand Cape Mount", tech: "David Johnson", status: "open", date: "2026-06-19", progress: 0 },
+  { id: 1318, site: "Sanniquellie", region: "Nimba", tech: "Mary Brown", status: "overdue", date: "2026-06-15", progress: 20 },
+  { id: 1301, site: "Voinjama North", region: "Lofa", tech: "James Clark", status: "overdue", date: "2026-06-12", progress: 0 },
+  { id: 1289, site: "Tubmanburg", region: "Bomi", tech: "Susan Taylor", status: "completed", date: "2026-06-18", progress: 100 },
+  { id: 1274, site: "Zwedru Central", region: "Grand Gedeh", tech: "Alex Moore", status: "completed", date: "2026-06-17", progress: 85 },
 ]
 
-const statusConfig: Record<string, { label: string; variant: "default" | "success" | "warning" | "destructive" | "secondary" | "info" }> = {
-  open: { label: "Open", variant: "secondary" },
-  assigned: { label: "Assigned", variant: "info" },
-  in_progress: { label: "In Progress", variant: "default" },
-  pending_approval: { label: "Pending Approval", variant: "warning" },
-  completed: { label: "Completed", variant: "success" },
-  overdue: { label: "Overdue", variant: "destructive" },
+const statusConfig: Record<string, { label: string; className: string }> = {
+  open:             { label: "Open",             className: "bg-gray-100 text-gray-700" },
+  in_progress:      { label: "In Progress",      className: "bg-blue-100 text-blue-700" },
+  pending_approval: { label: "Pending Approval", className: "bg-amber-100 text-amber-700" },
+  completed:        { label: "Completed",        className: "bg-green-100 text-green-700" },
+  overdue:          { label: "Overdue",          className: "bg-red-100 text-red-700" },
 }
 
-const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: "Low", color: "text-gray-500" },
-  medium: { label: "Medium", color: "text-amber-600" },
-  high: { label: "High", color: "text-orange-600" },
-  critical: { label: "Critical", color: "text-red-600" },
-}
+const regions = [...new Set(workOrders.map(w => w.region))].sort()
 
 export default function WorkOrdersPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
+  const [regionFilter, setRegionFilter] = useState("all")
+  const [items, setItems] = useState(workOrders)
 
-  const filtered = workOrders.filter((wo) => {
-    const matchSearch = wo.id.toLowerCase().includes(search.toLowerCase()) || wo.site.toLowerCase().includes(search.toLowerCase())
+  const filtered = items.filter((wo) => {
+    const q = search.toLowerCase()
+    const matchSearch = wo.site.toLowerCase().includes(q) || String(wo.id).includes(q) || wo.tech.toLowerCase().includes(q)
     const matchStatus = statusFilter === "all" || wo.status === statusFilter
-    const matchType = typeFilter === "all" || wo.type === typeFilter
-    return matchSearch && matchStatus && matchType
+    const matchRegion = regionFilter === "all" || wo.region === regionFilter
+    return matchSearch && matchStatus && matchRegion
   })
 
-  const statusCounts = {
-    open: workOrders.filter(w => w.status === "open").length,
-    in_progress: workOrders.filter(w => w.status === "in_progress").length,
-    pending_approval: workOrders.filter(w => w.status === "pending_approval").length,
-    overdue: workOrders.filter(w => w.status === "overdue").length,
-    completed: workOrders.filter(w => w.status === "completed").length,
-  }
+  const remove = (id: number) => setItems(items.filter(w => w.id !== id))
 
   return (
     <AppLayout>
-      
-      <div className="p-6 space-y-4">
-        {/* Status summary */}
-        <div className="grid grid-cols-5 gap-3">
-          {[
-            { key: "open", label: "Open", color: "text-gray-600", bg: "bg-gray-50" },
-            { key: "in_progress", label: "In Progress", color: "text-blue-600", bg: "bg-blue-50" },
-            { key: "pending_approval", label: "Pending Approval", color: "text-amber-600", bg: "bg-amber-50" },
-            { key: "overdue", label: "Overdue", color: "text-red-600", bg: "bg-red-50" },
-            { key: "completed", label: "Completed", color: "text-green-600", bg: "bg-green-50" },
-          ].map(({ key, label, color, bg }) => (
-            <button
-              key={key}
-              onClick={() => setStatusFilter(statusFilter === key ? "all" : key)}
-              className={`rounded-xl border p-4 text-left transition-all ${statusFilter === key ? "border-blue-200 shadow-sm" : "border-gray-100 bg-white hover:bg-gray-50"}`}
-            >
-              <p className={`text-2xl font-bold ${color}`}>{statusCounts[key as keyof typeof statusCounts]}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-            </button>
-          ))}
+      <div className="p-6 space-y-5 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">PM</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{filtered.length} total records</p>
+          </div>
+          <Button className="gap-1.5 bg-red-600 hover:bg-red-700 text-white">
+            <Plus className="h-4 w-4" /> New PM
+          </Button>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-48">
+        <div className="flex gap-3">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input className="pl-9" placeholder="Search work order ID or site..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input
+              className="pl-9"
+              placeholder="Search site, code or technician..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-44">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="assigned">Assigned</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="pending_approval">Pending Approval</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="PM Type" />
+          <Select value={regionFilter} onValueChange={setRegionFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Regions" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Daily PM">Daily PM</SelectItem>
-              <SelectItem value="Weekly PM">Weekly PM</SelectItem>
-              <SelectItem value="Monthly PM">Monthly PM</SelectItem>
+              <SelectItem value="all">All Regions</SelectItem>
+              {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" /> New Work Order
-          </Button>
         </div>
 
-        {/* Table */}
-        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">WO Number</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Site</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">PM Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Technician</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Priority</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Due Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map((wo) => {
-                const st = statusConfig[wo.status]
-                const pr = priorityConfig[wo.priority]
-                return (
-                  <tr key={wo.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-semibold text-blue-600">{wo.id}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{wo.site}</p>
-                      <p className="text-xs text-gray-500">{wo.region}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-gray-700">{wo.type}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700">
-                          {wo.tech.split(" ").map(n => n[0]).join("")}
-                        </div>
-                        <span className="text-xs text-gray-700">{wo.tech}</span>
+        {/* Card list */}
+        <div className="space-y-2">
+          {filtered.map((wo) => {
+            const st = statusConfig[wo.status]
+            const barColor = wo.progress === 100 ? "bg-red-600" : wo.progress === 0 ? "bg-red-200" : "bg-red-500"
+            return (
+              <div key={wo.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4 hover:shadow-sm transition-shadow">
+                <div className="flex items-center gap-3">
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">{wo.site}</span>
+                      <span className="text-sm text-gray-400">{wo.id}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${st.className}`}>
+                        {st.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />{wo.region}
+                      </span>
+                      <span>{wo.tech}</span>
+                      <span>{wo.date}</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${barColor}`}
+                          style={{ width: `${wo.progress}%` }}
+                        />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold ${pr.color}`}>{pr.label}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={st.variant}>{st.label}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-gray-700">{wo.due}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button variant="ghost" size="sm" className="text-blue-600 gap-1 h-7">
-                        <Eye className="h-3 w-3" /> View
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      <span className="text-xs text-gray-500 w-8 text-right">{wo.progress}%</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 ml-3 shrink-0">
+                    <button
+                      onClick={() => remove(wo.id)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button className="p-1.5 text-gray-300 hover:text-gray-600 transition-colors rounded">
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Search className="h-10 w-10 mb-3 text-gray-200" />
+              <p className="font-medium">No records found</p>
+              <p className="text-sm mt-1">Try adjusting your search or filters</p>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>
