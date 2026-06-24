@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Radio,
@@ -15,6 +15,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -33,7 +34,21 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+
+  const handleSignOut = async () => {
+    // Clear Supabase session if connected
+    try {
+      const { createClient } = await import("@supabase/supabase-js")
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      await supabase.auth.signOut()
+    } catch {}
+    router.push("/login")
+  }
 
   return (
     <aside
@@ -89,17 +104,26 @@ export function Sidebar() {
       </button>
 
       {/* User section */}
-      <div className={cn("border-t border-slate-700 p-4", collapsed && "px-2")}>
+      <div className={cn("border-t border-slate-700 p-3", collapsed && "px-2")}>
         <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-600 text-xs font-bold text-white">
             SA
           </div>
           {!collapsed && (
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-white">Super Admin</p>
               <p className="truncate text-xs text-slate-400">admin@telcocare.com</p>
             </div>
           )}
+          <button
+            onClick={handleSignOut}
+            title="Sign out"
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+            )}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </aside>
