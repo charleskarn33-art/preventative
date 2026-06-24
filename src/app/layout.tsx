@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TelcoCare PM - Telecom Preventive Maintenance Platform",
+  title: "IPT PowerTech - Telecom Preventive Maintenance Platform",
   description: "Enterprise telecom tower preventive maintenance management system",
 };
 

@@ -64,7 +64,7 @@ export function Sidebar() {
         </div>
         {!collapsed && (
           <div>
-            <p className="text-sm font-bold text-white leading-tight">TelcoCare</p>
+            <p className="text-sm font-bold text-white leading-tight">IPT PowerTech</p>
             <p className="text-xs text-blue-400 font-medium">PM Platform</p>
           </div>
         )}
@@ -112,7 +112,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-white">Super Admin</p>
-              <p className="truncate text-xs text-slate-400">admin@telcocare.com</p>
+              <p className="truncate text-xs text-slate-400">admin@iptpowertech.com</p>
             </div>
           )}
           <button

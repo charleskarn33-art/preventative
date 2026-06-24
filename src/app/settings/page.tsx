@@ -55,11 +55,11 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Company Name</Label>
-                    <Input className="mt-1" defaultValue="TelcoCare Operations Ltd" />
+                    <Input className="mt-1" defaultValue="IPT PowerTech Ltd" />
                   </div>
                   <div>
                     <Label>Platform Name</Label>
-                    <Input className="mt-1" defaultValue="TelcoCare PM" />
+                    <Input className="mt-1" defaultValue="IPT PowerTech" />
                   </div>
                   <div>
                     <Label>Primary Region</Label>

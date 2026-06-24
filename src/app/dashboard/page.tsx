@@ -67,7 +67,7 @@ export default function DashboardPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Welcome, Charles J. Karn</h1>
-            <p className="text-sm text-gray-500 mt-0.5">TelcoCare PM — Preventive Maintenance</p>
+            <p className="text-sm text-gray-500 mt-0.5">IPT PowerTech — Preventive Maintenance</p>
           </div>
           <Button asChild className="bg-red-600 hover:bg-red-700 gap-2 shadow-sm">
             <Link href="/work-orders">

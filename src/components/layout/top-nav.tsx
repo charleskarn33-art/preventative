@@ -39,7 +39,7 @@ export function TopNav() {
           <Activity className="h-4 w-4 text-white" />
         </div>
         <div>
-          <p className="text-sm font-bold text-white leading-tight">TelcoCare PM</p>
+          <p className="text-sm font-bold text-white leading-tight">IPT PowerTech</p>
           <p className="text-[10px] text-slate-400 leading-tight">Preventive Maintenance</p>
         </div>
       </div>
