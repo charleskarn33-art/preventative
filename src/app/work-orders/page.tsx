@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [regionFilter, setRegionFilter] = useState("all")
   const [items, setItems] = useState(workOrders)
+  const router = useRouter()
 
   const filtered = items.filter((wo) => {
     const q = search.toLowerCase()
@@ -58,7 +60,7 @@ export default function WorkOrdersPage() {
             <h1 className="text-2xl font-bold text-gray-900">PM</h1>
             <p className="text-sm text-gray-500 mt-0.5">{filtered.length} total records</p>
           </div>
-          <Button className="gap-1.5 bg-red-600 hover:bg-red-700 text-white">
+          <Button className="gap-1.5 bg-red-600 hover:bg-red-700 text-white" onClick={() => router.push("/checklists/new")}>
             <Plus className="h-4 w-4" /> New PM
           </Button>
         </div>

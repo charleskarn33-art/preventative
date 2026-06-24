@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import {
@@ -70,7 +71,7 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500 mt-0.5">IPT PowerTech — Preventive Maintenance</p>
           </div>
           <Button asChild className="bg-red-600 hover:bg-red-700 gap-2 shadow-sm">
-            <Link href="/work-orders">
+            <Link href="/checklists/new">
               <Plus className="h-4 w-4" /> New PM
             </Link>
           </Button>
