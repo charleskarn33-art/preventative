@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Plus, Trash2, Pencil, User, ClipboardList } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { sites, technicians } from "@/lib/data"
 
 const countyData = [
   { name: "Montserrado",    sites: 264, techs: 16, inspections: 126 },
@@ -25,8 +26,7 @@ const countyData = [
   { name: "River Cess",     sites: 5,   techs: 1,  inspections: 0 },
 ]
 
-const totalSites = countyData.reduce((s, c) => s + c.sites, 0)
-const totalTechs = countyData.reduce((s, c) => s + c.techs, 0)
+const totalTechs = technicians.length
 
 export default function RegionsPage() {
   const [search, setSearch] = useState("")
@@ -63,7 +63,7 @@ export default function RegionsPage() {
               ),
             },
             {
-              value: totalSites,
+              value: sites.length,
               label: "Total Sites",
               icon: (
                 <svg className="h-9 w-9 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
