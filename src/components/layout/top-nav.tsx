@@ -10,7 +10,6 @@ const navItems = [
   { href: "/pm-schedule", label: "PM" },
   { href: "/sites", label: "Sites" },
   { href: "/work-orders", label: "Work Orders" },
-  { href: "/checklists", label: "Checklists" },
   { href: "/reports", label: "Reports" },
 ]
 
