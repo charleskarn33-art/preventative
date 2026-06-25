@@ -290,14 +290,27 @@ function TechniciansTab() {
   )
 }
 
-export default function SitesPage() {
-  const [tab, setTab] = useState<Tab>("sites")
+// ── Sites sub-component with Add/Edit modal + Excel import ───────────────────
+
+type SiteRecord = { id: number; name: string; region: string; status: string; type: string; gens: number; kva: number; panels: number; techs: string }
+const emptySiteForm = () => ({ name: "", region: "", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 0, techs: "" })
+
+function SitesTab() {
+  const [siteList, setSiteList] = useState<SiteRecord[]>([...sites])
   const [search, setSearch] = useState("")
   const [regionFilter, setRegionFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [showModal, setShowModal] = useState(false)
+  const [editTarget, setEditTarget] = useState<SiteRecord | null>(null)
+  const [form, setForm] = useState(emptySiteForm())
+  const [importError, setImportError] = useState("")
+  const [importSuccess, setImportSuccess] = useState("")
 
-  const filteredSites = sites.filter(s => {
+  const siteRegions = [...new Set(siteList.map(s => s.region))].sort()
+  const nextId = () => Math.max(...siteList.map(s => s.id), 1000) + 1
+
+  const filteredSites = siteList.filter(s => {
     const q = search.toLowerCase()
     const match = s.name.toLowerCase().includes(q) || String(s.id).includes(q) || s.techs.toLowerCase().includes(q)
     const rMatch = regionFilter === "all" || s.region === regionFilter
@@ -305,13 +318,203 @@ export default function SitesPage() {
     return match && rMatch && sMatch
   })
 
-  const toggleSelect = (id: number) => {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+  const toggleSelect = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const openAdd = () => { setEditTarget(null); setForm(emptySiteForm()); setShowModal(true) }
+  const openEdit = (s: SiteRecord) => { setEditTarget(s); setForm({ name: s.name, region: s.region, status: s.status, type: s.type, gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs }); setShowModal(true) }
+  const closeModal = () => { setShowModal(false); setEditTarget(null) }
+
+  const handleSave = () => {
+    if (!form.name.trim() || !form.region) return
+    if (editTarget) {
+      setSiteList(siteList.map(s => s.id === editTarget.id ? { ...s, ...form } : s))
+    } else {
+      setSiteList([...siteList, { id: nextId(), ...form }])
+    }
+    closeModal()
   }
+
+  const handleDelete = (id: number) => setSiteList(siteList.filter(s => s.id !== id))
+
+  const downloadTemplate = () => {
+    const csv = "Name,Region,Status,Type,Generators,KVA,Panels,Technicians\nBaiyema,Bong,active,Greenfield,1,30,14,\"John Doe\"\n"
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a"); a.href = url; a.download = "sites_template.csv"; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(""); setImportSuccess("")
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) { setImportError("Please upload .xlsx, .xls, or .csv"); e.target.value = ""; return }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const lines = (ev.target?.result as string).split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) { setImportError("File appears empty or has no data rows."); return }
+        let base = nextId()
+        const imported: SiteRecord[] = lines.slice(1).map(row => {
+          const c = row.split(",").map(x => x.trim().replace(/^"|"$/g, ""))
+          return { id: base++, name: c[0] || "", region: c[1] || "", status: c[2] || "active", type: c[3] || "Greenfield", gens: parseInt(c[4]) || 0, kva: parseInt(c[5]) || 0, panels: parseInt(c[6]) || 0, techs: c[7] || "" }
+        }).filter(s => s.name)
+        setSiteList(prev => [...prev, ...imported])
+        setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
+      } catch { setImportError("Failed to parse file. Ensure it is CSV format.") }
+    }
+    reader.readAsText(file)
+    e.target.value = ""
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filters row */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input className="pl-9" placeholder="Search sites..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <Select value={regionFilter} onValueChange={setRegionFilter}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="All Regions" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Regions</SelectItem>
+            {siteRegions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="All Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex-1" />
+        {importError && <p className="text-xs text-red-600">{importError}</p>}
+        {importSuccess && <p className="text-xs text-green-600">{importSuccess}</p>}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <Upload className="h-4 w-4" /> Import Excel
+            <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={handleExcel} />
+          </label>
+          <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline whitespace-nowrap">Download template</button>
+        </div>
+        <Button size="sm" className="gap-1.5 bg-red-600 hover:bg-red-700 text-white" onClick={openAdd}>
+          <Plus className="h-4 w-4" /> Add Site
+        </Button>
+      </div>
+
+      {/* Count */}
+      <div className="flex items-center gap-2">
+        <div className="h-3 w-3 rounded-full border-2 border-gray-300" />
+        <span className="text-sm text-gray-500">{filteredSites.length} sites found</span>
+      </div>
+
+      {/* 2-col grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filteredSites.map(site => (
+          <div key={site.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-start gap-3">
+              <button onClick={() => toggleSelect(site.id)} className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 transition-colors ${selected.has(site.id) ? "border-red-600 bg-red-600" : "border-gray-300"}`} />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50">
+                <svg className="h-5 w-5 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L8 8h8L12 2z" /><path d="M8 8l-4 12h16L16 8" /><line x1="12" y1="8" x2="12" y2="20" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                  <span className="font-semibold text-gray-900">{site.name}</span>
+                  {statusBadge(site.status)}
+                  {typeBadge(site.type)}
+                </div>
+                <p className="text-xs text-gray-400 mb-2">{site.id}</p>
+                <div className="flex items-center gap-1 text-xs text-gray-500 mb-1"><MapPin className="h-3 w-3" /> {site.region}</div>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  {site.gens > 0 && <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> {site.gens} Gen • {site.kva}KVA</span>}
+                  <span className="flex items-center gap-1"><LayoutGrid className="h-3 w-3" /> {site.panels} panels</span>
+                  <span className="flex items-center gap-1"><User className="h-3 w-3" /> {site.techs}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button className="p-1.5 text-gray-300 hover:text-gray-600 rounded transition-colors"><Calendar className="h-4 w-4" /></button>
+                <button onClick={() => openEdit(site)} className="p-1.5 text-gray-300 hover:text-blue-600 rounded transition-colors"><Pencil className="h-4 w-4" /></button>
+                <button onClick={() => handleDelete(site.id)} className="p-1.5 text-gray-300 hover:text-red-600 rounded transition-colors"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {filteredSites.length === 0 && (
+          <div className="col-span-2 py-12 text-center text-gray-400 text-sm">No sites found.</div>
+        )}
+      </div>
+
+      {/* Add / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-bold text-gray-900 mb-5">{editTarget ? "Edit Site" : "Add Site"}</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="text-xs font-medium text-gray-600">Site Name <span className="text-red-500">*</span></label>
+                <Input className="mt-1" placeholder="e.g. Baiyema" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Region / County <span className="text-red-500">*</span></label>
+                <select className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.region} onChange={e => setForm({ ...form, region: e.target.value })}>
+                  <option value="">Select county...</option>
+                  {LIBERIA_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Status</label>
+                <select className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Site Type</label>
+                <select className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                  <option value="Greenfield">Greenfield</option>
+                  <option value="Rooftop">Rooftop</option>
+                  <option value="Outdoor">Outdoor</option>
+                  <option value="Indoor">Indoor</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">No. of Generators</label>
+                <Input className="mt-1" type="number" min={0} value={form.gens} onChange={e => setForm({ ...form, gens: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Capacity (KVA)</label>
+                <Input className="mt-1" type="number" min={0} value={form.kva} onChange={e => setForm({ ...form, kva: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Solar Panels</label>
+                <Input className="mt-1" type="number" min={0} value={form.panels} onChange={e => setForm({ ...form, panels: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-medium text-gray-600">Assigned Technician(s)</label>
+                <Input className="mt-1" placeholder="e.g. Jacob Fayiah" value={form.techs} onChange={e => setForm({ ...form, techs: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="outline" className="flex-1" onClick={closeModal}>Cancel</Button>
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.name.trim() || !form.region}>
+                {editTarget ? "Save Changes" : "Add Site"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function SitesPage() {
+  const [tab, setTab] = useState<Tab>("sites")
+  const [search, setSearch] = useState("")
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: "sites", label: "Sites", icon: <LayoutGrid className="h-3.5 w-3.5" /> },
@@ -336,7 +539,7 @@ export default function SitesPage() {
           {tabs.map(t => (
             <button
               key={t.key}
-              onClick={() => { setTab(t.key); setSearch(""); setRegionFilter("all"); setStatusFilter("all") }}
+              onClick={() => setTab(t.key)}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
                 tab === t.key
                   ? "border-gray-900 text-gray-900"
@@ -349,103 +552,7 @@ export default function SitesPage() {
         </div>
 
         {/* ── SITES TAB ── */}
-        {tab === "sites" && (
-          <div className="space-y-4">
-            {/* Filters row */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative w-56">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input className="pl-9" placeholder="Search sites..." value={search} onChange={e => setSearch(e.target.value)} />
-              </div>
-              <Select value={regionFilter} onValueChange={setRegionFilter}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="All Regions" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Regions</SelectItem>
-                  {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="All Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex-1" />
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Upload className="h-4 w-4" /> Import Excel
-              </Button>
-              <Button size="sm" className="gap-1.5 bg-red-600 hover:bg-red-700 text-white">
-                <Plus className="h-4 w-4" /> Add Site
-              </Button>
-            </div>
-
-            {/* Count */}
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full border-2 border-gray-300" />
-              <span className="text-sm text-gray-500">{filteredSites.length} sites found</span>
-            </div>
-
-            {/* 2-col grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filteredSites.map(site => (
-                <div key={site.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4 hover:shadow-sm transition-shadow">
-                  <div className="flex items-start gap-3">
-                    {/* Radio checkbox */}
-                    <button
-                      onClick={() => toggleSelect(site.id)}
-                      className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 transition-colors ${selected.has(site.id) ? "border-red-600 bg-red-600" : "border-gray-300"}`}
-                    />
-                    {/* Tower icon */}
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50">
-                      <svg className="h-5 w-5 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2L8 8h8L12 2z" /><path d="M8 8l-4 12h16L16 8" /><line x1="12" y1="8" x2="12" y2="20" />
-                      </svg>
-                    </div>
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className="font-semibold text-gray-900">{site.name}</span>
-                        {statusBadge(site.status)}
-                        {typeBadge(site.type)}
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">{site.id}</p>
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
-                        <MapPin className="h-3 w-3" /> {site.region}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        {site.gens > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Zap className="h-3 w-3" /> {site.gens} Gen • {site.kva}KVA
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <LayoutGrid className="h-3 w-3" /> {site.panels} panels
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" /> {site.techs}
-                        </span>
-                      </div>
-                    </div>
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button className="p-1.5 text-gray-300 hover:text-gray-600 rounded transition-colors">
-                        <Calendar className="h-4 w-4" />
-                      </button>
-                      <button className="p-1.5 text-gray-300 hover:text-blue-600 rounded transition-colors">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button className="p-1.5 text-gray-300 hover:text-red-600 rounded transition-colors">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {tab === "sites" && <SitesTab />}
 
         {/* ── REGIONS TAB ── */}
         {tab === "regions" && (
