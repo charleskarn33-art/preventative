@@ -324,7 +324,7 @@ function TechniciansTab() {
 // ── Sites sub-component with Add/Edit modal + Excel import ───────────────────
 
 type SiteRecord = { id: number; name: string; region: string; status: string; type: string; gens: number; kva: number; panels: number; techs: string }
-const emptySiteForm = () => ({ name: "", region: "", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 0, techs: "" })
+const emptySiteForm = () => ({ siteId: "", name: "", region: "", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 0, techs: "" })
 
 const SITES_KEY = "ipt_sites"
 
@@ -368,15 +368,16 @@ function SitesTab() {
   const toggleSelect = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const openAdd = () => { setEditTarget(null); setForm(emptySiteForm()); setShowModal(true) }
-  const openEdit = (s: SiteRecord) => { setEditTarget(s); setForm({ name: s.name, region: s.region, status: s.status, type: s.type, gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs }); setShowModal(true) }
+  const openEdit = (s: SiteRecord) => { setEditTarget(s); setForm({ siteId: String(s.id), name: s.name, region: s.region, status: s.status, type: s.type, gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs }); setShowModal(true) }
   const closeModal = () => { setShowModal(false); setEditTarget(null) }
 
   const handleSave = () => {
     if (!form.name.trim() || !form.region) return
+    const newId = parseInt(form.siteId) || nextId()
     if (editTarget) {
-      setSiteList(siteList.map(s => s.id === editTarget.id ? { ...s, ...form } : s))
+      setSiteList(siteList.map(s => s.id === editTarget.id ? { ...s, id: newId, name: form.name, region: form.region, status: form.status, type: form.type, gens: form.gens, kva: form.kva, panels: form.panels, techs: form.techs } : s))
     } else {
-      setSiteList([...siteList, { id: nextId(), ...form }])
+      setSiteList([...siteList, { id: newId, name: form.name, region: form.region, status: form.status, type: form.type, gens: form.gens, kva: form.kva, panels: form.panels, techs: form.techs }])
     }
     closeModal()
   }
@@ -385,7 +386,7 @@ function SitesTab() {
 
   const downloadTemplate = async () => {
     const XLSX = await import("xlsx")
-    const csv = "Name,Region,Status,Type,Generators,KVA,Panels,Technicians\nBaiyema,Bong,active,Greenfield,1,30,14,John Doe\n"
+    const csv = "Site ID,Name,Region,Status,Type,Generators,KVA,Panels,Technicians\n1418,Baiyema,Bong,active,Greenfield,1,30,14,John Doe\n"
     const a = document.createElement("a")
     a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
     a.download = "sites_template.csv"; a.click()
@@ -424,7 +425,7 @@ function SitesTab() {
       }
       let base = nextId()
       const imported: SiteRecord[] = rows.map(row => ({
-        id: base++,
+        id: parseInt(row["Site ID"] || row["site_id"] || row["SiteID"] || row["id"] || "0") || base++,
         name:   (row["Name"]        || row["name"]        || "").trim(),
         region: (row["Region"]      || row["region"]      || "").trim(),
         status: (row["Status"]      || row["status"]      || "active").trim(),
@@ -531,7 +532,11 @@ function SitesTab() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-base font-bold text-gray-900 mb-5">{editTarget ? "Edit Site" : "Add Site"}</h2>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Site ID <span className="text-red-500">*</span></label>
+                <Input className="mt-1" placeholder="e.g. 1418" type="number" value={form.siteId} onChange={e => setForm({ ...form, siteId: e.target.value })} />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-gray-600">Site Name <span className="text-red-500">*</span></label>
                 <Input className="mt-1" placeholder="e.g. Baiyema" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               </div>
@@ -577,7 +582,7 @@ function SitesTab() {
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="outline" className="flex-1" onClick={closeModal}>Cancel</Button>
-              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.name.trim() || !form.region}>
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.siteId || !form.name.trim() || !form.region}>
                 {editTarget ? "Save Changes" : "Add Site"}
               </Button>
             </div>
