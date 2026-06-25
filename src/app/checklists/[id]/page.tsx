@@ -133,12 +133,12 @@ function ResponseBadge({ r }: { r: Resp }) {
   if (!r) return <span className="text-xs text-gray-300">—</span>
   if (r === "YES") return (
     <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-      <CheckCircle2 className="h-3 w-3" /> Pass
+      <CheckCircle2 className="h-3 w-3" /> Yes
     </span>
   )
   if (r === "NO") return (
     <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
-      <XCircle className="h-3 w-3" /> Fail
+      <XCircle className="h-3 w-3" /> No
     </span>
   )
   return (
