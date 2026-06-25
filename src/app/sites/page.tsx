@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,14 +89,32 @@ type Tech = { id: string; name: string; region: string; sites: number; status: s
 
 const emptyForm = () => ({ name: "", region: "", phone: "", status: "active", sites: 0 })
 
+const TECHS_KEY = "ipt_technicians"
+
 function TechniciansTab() {
   const [techList, setTechList] = useState<Tech[]>([...technicians])
+  const [loaded, setLoaded] = useState(false)
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
   const [editTarget, setEditTarget] = useState<Tech | null>(null)
   const [form, setForm] = useState(emptyForm())
   const [importError, setImportError] = useState("")
   const [importSuccess, setImportSuccess] = useState("")
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(TECHS_KEY)
+      if (saved) setTechList(JSON.parse(saved))
+    } catch {}
+    setLoaded(true)
+  }, [])
+
+  // Persist to localStorage whenever list changes
+  useEffect(() => {
+    if (!loaded) return
+    localStorage.setItem(TECHS_KEY, JSON.stringify(techList))
+  }, [techList, loaded])
 
   const nextId = () => `T-${String(techList.length + 1).padStart(3, "0")}`
 
@@ -116,48 +134,62 @@ function TechniciansTab() {
 
   const handleDelete = (id: string) => setTechList(techList.filter(t => t.id !== id))
 
-  const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const parseRows = (rows: Record<string, string>[], startLen: number): Tech[] =>
+    rows.map((row, i) => ({
+      id: `T-${String(startLen + i + 1).padStart(3, "0")}`,
+      name:   (row["Name"]   || row["name"]   || "").trim(),
+      region: (row["Region"] || row["region"] || "").trim(),
+      phone:  (row["Phone"]  || row["phone"]  || "").trim(),
+      status: (row["Status"] || row["status"] || "active").trim(),
+      sites:  parseInt(row["Sites"] || row["sites"] || "0") || 0,
+    })).filter(t => t.name)
+
+  const handleExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(""); setImportSuccess("")
     const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      setImportError("Please upload an .xlsx, .xls, or .csv file.")
-      e.target.value = ""
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      try {
-        const XLSX = await import("xlsx")
-        const data = new Uint8Array(ev.target?.result as ArrayBuffer)
-        const wb = XLSX.read(data, { type: "array" })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" })
-        if (rows.length === 0) { setImportError("File appears empty or has no data rows."); return }
-        const imported: Tech[] = rows.map((row, i) => ({
-          id: `T-${String(techList.length + i + 1).padStart(3, "0")}`,
-          name:   String(row["Name"]   || row["name"]   || "").trim(),
-          region: String(row["Region"] || row["region"] || "").trim(),
-          phone:  String(row["Phone"]  || row["phone"]  || "").trim(),
-          status: String(row["Status"] || row["status"] || "active").trim(),
-          sites:  parseInt(String(row["Sites"] || row["sites"] || "0")) || 0,
-        })).filter(t => t.name)
-        setTechList(prev => [...prev, ...imported])
-        setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported successfully.`)
-      } catch (err) {
-        console.error("Import error:", err)
-        setImportError("Failed to parse file. Please check the format.")
-      }
-    }
-    reader.readAsArrayBuffer(file)
+    if (!file) { return }
     e.target.value = ""
+    try {
+      let rows: Record<string, string>[] = []
+      if (file.name.match(/\.csv$/i)) {
+        const text = await file.text()
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) { setImportError("File appears empty."); return }
+        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
+        rows = lines.slice(1).map(line => {
+          const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = cols[i] || "" })
+          return obj
+        })
+      } else if (file.name.match(/\.(xlsx|xls)$/i)) {
+        const readXlsxFile = (await import("read-excel-file/browser")).default
+        const sheets = await readXlsxFile(file); const xlsRows = sheets[0]?.data ?? []
+        if (xlsRows.length < 2) { setImportError("File appears empty."); return }
+        const headers = xlsRows[0].map(h => String(h ?? ""))
+        rows = xlsRows.slice(1).map(row => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = String(row[i] ?? "") })
+          return obj
+        })
+      } else {
+        setImportError("Please upload an .xlsx, .xls, or .csv file."); return
+      }
+      const imported = parseRows(rows, techList.length)
+      if (imported.length === 0) { setImportError("No valid rows found. Check column names: Name, Region, Phone, Status, Sites"); return }
+      setTechList(prev => [...prev, ...imported])
+      setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported.`)
+    } catch (err) {
+      console.error(err)
+      setImportError("Failed to parse file. Check format.")
+    }
   }
 
-  const downloadTemplate = async () => {
-    const XLSX = await import("xlsx")
-    const ws = XLSX.utils.json_to_sheet([{ Name: "John Doe", Region: "Montserrado", Phone: "+231 770 000 001", Status: "active", Sites: 3 }])
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Technicians")
-    XLSX.writeFile(wb, "technicians_template.xlsx")
+  const downloadTemplate = () => {
+    const csv = "Name,Region,Phone,Status,Sites\nJohn Doe,Montserrado,+231 770 000 001,active,3\n"
+    const a = document.createElement("a")
+    a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
+    a.download = "technicians_template.csv"; a.click()
   }
 
   const filtered = techList.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.region.toLowerCase().includes(search.toLowerCase()))
@@ -294,8 +326,11 @@ function TechniciansTab() {
 type SiteRecord = { id: number; name: string; region: string; status: string; type: string; gens: number; kva: number; panels: number; techs: string }
 const emptySiteForm = () => ({ name: "", region: "", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 0, techs: "" })
 
+const SITES_KEY = "ipt_sites"
+
 function SitesTab() {
   const [siteList, setSiteList] = useState<SiteRecord[]>([...sites])
+  const [loaded, setLoaded] = useState(false)
   const [search, setSearch] = useState("")
   const [regionFilter, setRegionFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -305,6 +340,19 @@ function SitesTab() {
   const [form, setForm] = useState(emptySiteForm())
   const [importError, setImportError] = useState("")
   const [importSuccess, setImportSuccess] = useState("")
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SITES_KEY)
+      if (saved) setSiteList(JSON.parse(saved))
+    } catch {}
+    setLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!loaded) return
+    localStorage.setItem(SITES_KEY, JSON.stringify(siteList))
+  }, [siteList, loaded])
 
   const siteRegions = [...new Set(siteList.map(s => s.region))].sort()
   const nextId = () => Math.max(...siteList.map(s => s.id), 1000) + 1
@@ -337,46 +385,62 @@ function SitesTab() {
 
   const downloadTemplate = async () => {
     const XLSX = await import("xlsx")
-    const ws = XLSX.utils.json_to_sheet([{ Name: "Baiyema", Region: "Bong", Status: "active", Type: "Greenfield", Generators: 1, KVA: 30, Panels: 14, Technicians: "John Doe" }])
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sites")
-    XLSX.writeFile(wb, "sites_template.xlsx")
+    const csv = "Name,Region,Status,Type,Generators,KVA,Panels,Technicians\nBaiyema,Bong,active,Greenfield,1,30,14,John Doe\n"
+    const a = document.createElement("a")
+    a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
+    a.download = "sites_template.csv"; a.click()
   }
 
-  const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(""); setImportSuccess("")
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) { setImportError("Please upload .xlsx, .xls, or .csv"); e.target.value = ""; return }
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      try {
-        const XLSX = await import("xlsx")
-        const data = new Uint8Array(ev.target?.result as ArrayBuffer)
-        const wb = XLSX.read(data, { type: "array" })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" })
-        if (rows.length === 0) { setImportError("File appears empty or has no data rows."); return }
-        let base = nextId()
-        const imported: SiteRecord[] = rows.map(row => ({
-          id: base++,
-          name:   String(row["Name"]        || row["name"]        || "").trim(),
-          region: String(row["Region"]      || row["region"]      || "").trim(),
-          status: String(row["Status"]      || row["status"]      || "active").trim(),
-          type:   String(row["Type"]        || row["type"]        || "Greenfield").trim(),
-          gens:   parseInt(String(row["Generators"] || row["generators"] || "0")) || 0,
-          kva:    parseInt(String(row["KVA"]        || row["kva"]        || "0")) || 0,
-          panels: parseInt(String(row["Panels"]     || row["panels"]     || "0")) || 0,
-          techs:  String(row["Technicians"] || row["technicians"] || "").trim(),
-        })).filter(s => s.name)
-        setSiteList(prev => [...prev, ...imported])
-        setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
-      } catch (err) {
-        console.error("Import error:", err)
-        setImportError("Failed to parse file. Please check the format.")
-      }
-    }
-    reader.readAsArrayBuffer(file)
     e.target.value = ""
+    try {
+      let rows: Record<string, string>[] = []
+      if (file.name.match(/\.csv$/i)) {
+        const text = await file.text()
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) { setImportError("File appears empty."); return }
+        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
+        rows = lines.slice(1).map(line => {
+          const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = cols[i] || "" })
+          return obj
+        })
+      } else if (file.name.match(/\.(xlsx|xls)$/i)) {
+        const readXlsxFile = (await import("read-excel-file/browser")).default
+        const sheets = await readXlsxFile(file); const xlsRows = sheets[0]?.data ?? []
+        if (xlsRows.length < 2) { setImportError("File appears empty."); return }
+        const headers = xlsRows[0].map(h => String(h ?? ""))
+        rows = xlsRows.slice(1).map(row => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = String(row[i] ?? "") })
+          return obj
+        })
+      } else {
+        setImportError("Please upload an .xlsx, .xls, or .csv file."); return
+      }
+      let base = nextId()
+      const imported: SiteRecord[] = rows.map(row => ({
+        id: base++,
+        name:   (row["Name"]        || row["name"]        || "").trim(),
+        region: (row["Region"]      || row["region"]      || "").trim(),
+        status: (row["Status"]      || row["status"]      || "active").trim(),
+        type:   (row["Type"]        || row["type"]        || "Greenfield").trim(),
+        gens:   parseInt(row["Generators"] || row["generators"] || "0") || 0,
+        kva:    parseInt(row["KVA"]        || row["kva"]        || "0") || 0,
+        panels: parseInt(row["Panels"]     || row["panels"]     || "0") || 0,
+        techs:  (row["Technicians"] || row["technicians"] || "").trim(),
+      })).filter(s => s.name)
+      if (imported.length === 0) { setImportError("No valid rows found. Check column names: Name, Region, Status, Type, Generators, KVA, Panels, Technicians"); return }
+      setSiteList(prev => [...prev, ...imported])
+      setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
+    } catch (err) {
+      console.error(err)
+      setImportError("Failed to parse file. Check format.")
+    }
   }
 
   return (
