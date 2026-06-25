@@ -9,7 +9,14 @@ import { Label } from "@/components/ui/label"
 import { Save, LayoutTemplate, BookmarkPlus, MapPin, Plus, Pencil, Trash2, Check, X, ImagePlus, Camera, AlertCircle, CheckCircle2, Search } from "lucide-react"
 import { sites } from "@/lib/data"
 
-const SITE_OPTIONS = sites.map(s => ({ label: `${s.name} (${s.id})`, value: s.name, region: s.region }))
+const SITE_OPTIONS = sites.map(s => ({
+  label: `${s.name} (${s.id})`,
+  value: s.name,
+  region: s.region,
+  genBrand: s.genBrand,
+  gens: s.gens,
+  kva: s.kva,
+}))
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -191,10 +198,10 @@ function PhotoStrip({ photos, onAdd, onRemove }: {
 
 // ─── Searchable site combobox ─────────────────────────────────────────────────
 
-function SiteCombobox({ value, onChange, onRegionChange }: {
+function SiteCombobox({ value, onChange, onSiteSelect }: {
   value: string
   onChange: (v: string) => void
-  onRegionChange: (r: string) => void
+  onSiteSelect: (s: typeof SITE_OPTIONS[0]) => void
 }) {
   const [query, setQuery] = useState(value)
   const [open, setOpen] = useState(false)
@@ -215,7 +222,7 @@ function SiteCombobox({ value, onChange, onRegionChange }: {
 
   const select = (opt: typeof SITE_OPTIONS[0]) => {
     onChange(opt.value)
-    onRegionChange(opt.region)
+    onSiteSelect(opt)
     setQuery(opt.label)
     setOpen(false)
   }
@@ -234,7 +241,7 @@ function SiteCombobox({ value, onChange, onRegionChange }: {
         {query && (
           <button
             type="button"
-            onClick={() => { setQuery(""); onChange(""); onRegionChange(""); setOpen(true) }}
+            onClick={() => { setQuery(""); onChange(""); setOpen(true) }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             <X className="h-3.5 w-3.5" />
@@ -552,7 +559,12 @@ function NewInspectionInner() {
                       <SiteCombobox
                         value={site}
                         onChange={setSite}
-                        onRegionChange={setRegion}
+                        onSiteSelect={opt => {
+                          setRegion(opt.region)
+                          setGenBrand(opt.genBrand)
+                          setNumGens(opt.gens > 0 ? String(opt.gens) : "")
+                          setCapacity(opt.kva > 0 ? String(opt.kva) : "")
+                        }}
                       />
                     </div>
                     <div>
