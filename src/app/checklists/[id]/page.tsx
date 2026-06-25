@@ -1,6 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Download, Pencil, CheckCircle2, XCircle, MinusCircle } from "lucide-react"
@@ -150,11 +151,27 @@ function ResponseBadge({ r }: { r: Resp }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+interface SavedInspection {
+  id: string; site: string; technician: string; date: string; region: string
+  genBrand: string; numGens: string; capacity: string; gps: string; notes: string
+  dcAmps: string[]; battVolts: string[]; damagedPanels: string; progress: number
+  sections: { id: number; label: string; items: { id: string; question: string; response: string; comment: string; corrective: string }[] }[]
+  savedAt: string
+}
+
 export default function InspectionViewPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const numId = Number(id)
   const wo = WO_DATA[numId]
+  const [saved, setSaved] = useState<SavedInspection | null>(null)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`inspection_${id}`)
+      if (raw) setSaved(JSON.parse(raw))
+    } catch {}
+  }, [id])
 
   if (!wo) {
     return (
@@ -170,9 +187,21 @@ export default function InspectionViewPage() {
   }
 
   const st = statusConfig[wo.status]
-  const sections = mockSections(wo.progress)
 
-  const editUrl = `/checklists/new?edit=1&id=${wo.code}&site=${encodeURIComponent(wo.site)}&tech=${encodeURIComponent(wo.tech)}&region=${encodeURIComponent(wo.region)}&date=${wo.date}`
+  // Use saved data if available, otherwise fall back to mock
+  const displaySite       = saved?.site       || wo.site
+  const displayTech       = saved?.technician || wo.tech
+  const displayDate       = saved?.date       || wo.date
+  const displayRegion     = saved?.region     || wo.region
+  const displayGenerator  = saved?.genBrand   || wo.generator
+  const displayCapacity   = saved?.capacity ? `${saved.capacity} kVA` : wo.capacity
+  const displayProgress   = saved?.progress   ?? wo.progress
+
+  const checklistSections = saved
+    ? saved.sections.filter(s => s.id !== 1)   // skip Site Info section
+    : mockSections(wo.progress)
+
+  const editUrl = `/checklists/new?edit=1&id=${wo.code}&site=${encodeURIComponent(displaySite)}&tech=${encodeURIComponent(displayTech)}&region=${encodeURIComponent(displayRegion)}&date=${displayDate}`
 
   return (
     <AppLayout>
@@ -189,8 +218,11 @@ export default function InspectionViewPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold text-gray-900">{wo.site}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{displaySite}</h1>
             <span className={`text-sm font-medium px-3 py-1 rounded-full ${st.className}`}>{st.label}</span>
+            {saved && (
+              <span className="text-xs text-gray-400">Last saved {new Date(saved.savedAt).toLocaleString()}</span>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="outline" className="gap-1.5 text-gray-600" onClick={() => window.print()}>
@@ -207,11 +239,11 @@ export default function InspectionViewPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-5">
             {[
               { label: "Site Code",   value: wo.code },
-              { label: "Region",      value: wo.region },
-              { label: "Technician",  value: wo.tech },
-              { label: "Date",        value: wo.date },
-              { label: "Generator",   value: wo.generator },
-              { label: "Capacity",    value: wo.capacity },
+              { label: "Region",      value: displayRegion },
+              { label: "Technician",  value: displayTech },
+              { label: "Date",        value: displayDate },
+              { label: "Generator",   value: displayGenerator },
+              { label: "Capacity",    value: displayCapacity },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-xs text-gray-400 mb-0.5">{label}</p>
@@ -224,22 +256,22 @@ export default function InspectionViewPage() {
             <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
               <div
                 className="h-full rounded-full bg-red-600 transition-all"
-                style={{ width: `${wo.progress}%` }}
+                style={{ width: `${displayProgress}%` }}
               />
             </div>
-            <span className="text-sm font-semibold text-gray-700">{wo.progress}%</span>
+            <span className="text-sm font-semibold text-gray-700">{displayProgress}%</span>
           </div>
         </div>
 
         {/* Checklist sections */}
-        {sections.map((sec) => (
+        {checklistSections.map((sec) => (
           <div key={sec.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">{sec.label}</h2>
 
-            {/* Section extras (running hours, voltages, etc.) */}
-            {sec.extras && sec.extras.length > 0 && (
+            {/* Section extras — only shown for mock data */}
+            {"extras" in sec && (sec as SectionResult).extras && (sec as SectionResult).extras!.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-                {sec.extras.map(e => (
+                {(sec as SectionResult).extras!.map(e => (
                   <div key={e.label} className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                     <p className="text-xs text-gray-400 mb-0.5">{e.label}</p>
                     <p className="text-sm font-bold text-gray-900">{e.value}</p>
@@ -248,12 +280,44 @@ export default function InspectionViewPage() {
               </div>
             )}
 
+            {/* DC amps extras for saved data */}
+            {saved && sec.label === "DC System" && saved.dcAmps.some(v => v) && (
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                {saved.dcAmps.map((v, i) => v ? (
+                  <div key={i} className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+                    <p className="text-xs text-gray-400 mb-0.5">Phase {String.fromCharCode(65 + i)} (A)</p>
+                    <p className="text-sm font-bold text-gray-900">{v}</p>
+                  </div>
+                ) : null)}
+              </div>
+            )}
+
+            {/* Battery voltage extras for saved data */}
+            {saved && sec.label === "Battery" && saved.battVolts.some(v => v) && (
+              <div className="grid grid-cols-4 gap-3 mb-5">
+                {saved.battVolts.map((v, i) => v ? (
+                  <div key={i} className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+                    <p className="text-xs text-gray-400 mb-0.5">Battery {i + 1} (V)</p>
+                    <p className="text-sm font-bold text-gray-900">{v}</p>
+                  </div>
+                ) : null)}
+              </div>
+            )}
+
             {/* Questions */}
             <div className="divide-y divide-gray-50">
               {sec.items.map((item, i) => (
-                <div key={i} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                  <p className="text-sm text-gray-700">{item.question}</p>
-                  <ResponseBadge r={item.response} />
+                <div key={i} className="flex items-start justify-between py-3 first:pt-0 last:pb-0 gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700">{item.question}</p>
+                    {"comment" in item && item.comment && (
+                      <p className="text-xs text-gray-500 mt-1">Comment: {item.comment}</p>
+                    )}
+                    {"corrective" in item && item.corrective && (
+                      <p className="text-xs text-amber-600 mt-0.5">Corrective: {item.corrective}</p>
+                    )}
+                  </div>
+                  <ResponseBadge r={(item.response as "YES" | "NO" | "NA" | "")} />
                 </div>
               ))}
             </div>

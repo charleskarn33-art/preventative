@@ -307,8 +307,23 @@ function NewInspectionInner() {
 
   const handleSubmit = async () => {
     setSubmitting(true)
-    // Simulate saving (replace with real API call when backend is ready)
-    await new Promise(r => setTimeout(r, 1200))
+    const id = params.get("id")
+    if (id) {
+      const payload = {
+        id, site, technician, date, region, genBrand, numGens, capacity, gps, notes,
+        dcAmps, battVolts, damagedPanels, progress,
+        sections: sections.map(s => ({
+          id: s.id, label: s.label,
+          items: s.items.map(i => ({
+            id: i.id, question: i.question, response: i.response,
+            comment: i.comment, corrective: i.corrective,
+          })),
+        })),
+        savedAt: new Date().toISOString(),
+      }
+      localStorage.setItem(`inspection_${id}`, JSON.stringify(payload))
+    }
+    await new Promise(r => setTimeout(r, 800))
     setSubmitting(false)
     setSubmitted(true)
     setTimeout(() => router.push("/work-orders"), 1500)
