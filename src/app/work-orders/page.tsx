@@ -145,9 +145,9 @@ export default function WorkOrdersPage() {
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => router.push(`/checklists/new?edit=1&id=${wo.id}&site=${encodeURIComponent(wo.site)}&tech=${encodeURIComponent(wo.tech)}&region=${encodeURIComponent(wo.region)}&date=${wo.date}`)}
+                      onClick={() => router.push(`/checklists/${wo.id}`)}
                       className="p-1.5 text-gray-300 hover:text-gray-600 transition-colors rounded"
-                      title="Open / Edit Inspection"
+                      title="View Inspection"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
