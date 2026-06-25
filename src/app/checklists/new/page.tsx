@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useRef, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -186,8 +186,10 @@ function PhotoStrip({ photos, onAdd, onRemove }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function NewInspectionPage() {
+function NewInspectionInner() {
   const router = useRouter()
+  const params = useSearchParams()
+  const isEdit = params.get("edit") === "1"
   const [activeSection, setActiveSection] = useState(1)
   const [sections, setSections] = useState<Section[]>(initialSections)
   const [templateMode, setTemplateMode] = useState(false)
@@ -195,11 +197,11 @@ export default function NewInspectionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  // Site info
-  const [site, setSite] = useState("")
-  const [technician, setTechnician] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
-  const [region, setRegion] = useState("")
+  // Site info — pre-fill from query params when editing
+  const [site, setSite] = useState(params.get("site") ?? "")
+  const [technician, setTechnician] = useState(params.get("tech") ?? "")
+  const [date, setDate] = useState(params.get("date") ?? new Date().toISOString().split("T")[0])
+  const [region, setRegion] = useState(params.get("region") ?? "")
   const [genBrand, setGenBrand] = useState("")
   const [numGens, setNumGens] = useState("")
   const [capacity, setCapacity] = useState("")
@@ -368,8 +370,15 @@ export default function NewInspectionPage() {
         <div className="border-b border-gray-200 bg-white px-6 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">New Inspection</h1>
-              <p className="text-sm text-gray-500 mt-0.5">{site || "Select a site to begin"}</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900">{isEdit ? "Edit Inspection" : "New Inspection"}</h1>
+                {isEdit && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Editing</span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {site ? `${site}${params.get("id") ? ` (${params.get("id")})` : ""}` : "Select a site to begin"}
+              </p>
             </div>
             <div className="flex items-center gap-3 flex-wrap justify-end">
               {/* Progress */}
@@ -603,7 +612,7 @@ export default function NewInspectionPage() {
                       </Button>
                     ) : (
                       <Button onClick={() => setShowSubmitModal(true)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
-                        <Save className="h-4 w-4" /> Submit Inspection
+                        <Save className="h-4 w-4" /> {isEdit ? "Save Changes" : "Submit Inspection"}
                       </Button>
                     )}
                   </div>
@@ -621,7 +630,7 @@ export default function NewInspectionPage() {
             {submitted ? (
               <div className="flex flex-col items-center gap-3 py-4">
                 <CheckCircle2 className="h-14 w-14 text-green-500" />
-                <p className="text-lg font-semibold text-gray-900">Inspection Submitted!</p>
+                <p className="text-lg font-semibold text-gray-900">{isEdit ? "Inspection Updated!" : "Inspection Submitted!"}</p>
                 <p className="text-sm text-gray-500 text-center">Redirecting to Work Orders…</p>
               </div>
             ) : (
@@ -629,7 +638,7 @@ export default function NewInspectionPage() {
                 <div className="flex items-start gap-3 mb-4">
                   <AlertCircle className="h-6 w-6 text-red-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-gray-900">Submit Inspection?</p>
+                    <p className="font-semibold text-gray-900">{isEdit ? "Save Changes?" : "Submit Inspection?"}</p>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {unanswered === 0
                         ? "All questions answered. Ready to submit."
@@ -658,9 +667,9 @@ export default function NewInspectionPage() {
                     disabled={submitting}
                   >
                     {submitting ? (
-                      <><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Submitting…</>
+                      <><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {isEdit ? "Saving…" : "Submitting…"}</>
                     ) : (
-                      <><Save className="h-4 w-4" /> Confirm Submit</>
+                      <><Save className="h-4 w-4" /> {isEdit ? "Save Changes" : "Confirm Submit"}</>
                     )}
                   </Button>
                 </div>
@@ -670,5 +679,13 @@ export default function NewInspectionPage() {
         </div>
       )}
     </AppLayout>
+  )
+}
+
+export default function NewInspectionPage() {
+  return (
+    <Suspense>
+      <NewInspectionInner />
+    </Suspense>
   )
 }
