@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Save, LayoutTemplate, BookmarkPlus, MapPin, Plus, Pencil, Trash2, Check, X, ImagePlus, Camera } from "lucide-react"
+import { Save, LayoutTemplate, BookmarkPlus, MapPin, Plus, Pencil, Trash2, Check, X, ImagePlus, Camera, AlertCircle, CheckCircle2 } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -186,9 +187,13 @@ function PhotoStrip({ photos, onAdd, onRemove }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NewInspectionPage() {
+  const router = useRouter()
   const [activeSection, setActiveSection] = useState(1)
   const [sections, setSections] = useState<Section[]>(initialSections)
   const [templateMode, setTemplateMode] = useState(false)
+  const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   // Site info
   const [site, setSite] = useState("")
@@ -210,6 +215,16 @@ export default function NewInspectionPage() {
   const allItems = sections.slice(1).flatMap(s => s.items)
   const answered = allItems.filter(i => i.response !== "").length
   const progress = allItems.length > 0 ? Math.round((answered / allItems.length) * 100) : 0
+  const unanswered = allItems.filter(i => i.response === "").length
+
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    // Simulate saving (replace with real API call when backend is ready)
+    await new Promise(r => setTimeout(r, 1200))
+    setSubmitting(false)
+    setSubmitted(true)
+    setTimeout(() => router.push("/work-orders"), 1500)
+  }
 
   // ── Section helpers ──────────────────────────────────────────────────────────
 
@@ -587,7 +602,7 @@ export default function NewInspectionPage() {
                         Next: {nextSec.label} →
                       </Button>
                     ) : (
-                      <Button className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+                      <Button onClick={() => setShowSubmitModal(true)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
                         <Save className="h-4 w-4" /> Submit Inspection
                       </Button>
                     )}
@@ -599,6 +614,61 @@ export default function NewInspectionPage() {
           </div>
         </div>
       </div>
+      {/* Submit confirmation modal */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+            {submitted ? (
+              <div className="flex flex-col items-center gap-3 py-4">
+                <CheckCircle2 className="h-14 w-14 text-green-500" />
+                <p className="text-lg font-semibold text-gray-900">Inspection Submitted!</p>
+                <p className="text-sm text-gray-500 text-center">Redirecting to Work Orders…</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start gap-3 mb-4">
+                  <AlertCircle className="h-6 w-6 text-red-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-gray-900">Submit Inspection?</p>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {unanswered === 0
+                        ? "All questions answered. Ready to submit."
+                        : `${unanswered} question${unanswered !== 1 ? "s" : ""} unanswered. You can still submit.`}
+                    </p>
+                  </div>
+                </div>
+                {unanswered > 0 && (
+                  <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                    Unanswered questions will be recorded as incomplete.
+                  </div>
+                )}
+                <div className="bg-gray-50 rounded-lg p-3 mb-5 text-xs text-gray-600 space-y-1">
+                  <div className="flex justify-between"><span>Site</span><span className="font-medium text-gray-800">{site || "—"}</span></div>
+                  <div className="flex justify-between"><span>Technician</span><span className="font-medium text-gray-800">{technician || "—"}</span></div>
+                  <div className="flex justify-between"><span>Date</span><span className="font-medium text-gray-800">{date}</span></div>
+                  <div className="flex justify-between"><span>Completion</span><span className="font-medium text-gray-800">{progress}%</span></div>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowSubmitModal(false)} disabled={submitting}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Submitting…</>
+                    ) : (
+                      <><Save className="h-4 w-4" /> Confirm Submit</>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
