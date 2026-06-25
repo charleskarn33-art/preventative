@@ -16,6 +16,7 @@ const SITE_OPTIONS = sites.map(s => ({
   genBrand: s.genBrand,
   gens: s.gens,
   kva: s.kva,
+  techs: s.techs,
 }))
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -561,6 +562,7 @@ function NewInspectionInner() {
                         onChange={setSite}
                         onSiteSelect={opt => {
                           setRegion(opt.region)
+                          setTechnician(opt.techs)
                           setGenBrand(opt.genBrand)
                           setNumGens(opt.gens > 0 ? String(opt.gens) : "")
                           setCapacity(opt.kva > 0 ? String(opt.kva) : "")
