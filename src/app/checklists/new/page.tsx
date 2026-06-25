@@ -6,7 +6,10 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Save, LayoutTemplate, BookmarkPlus, MapPin, Plus, Pencil, Trash2, Check, X, ImagePlus, Camera, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Save, LayoutTemplate, BookmarkPlus, MapPin, Plus, Pencil, Trash2, Check, X, ImagePlus, Camera, AlertCircle, CheckCircle2, Search } from "lucide-react"
+import { sites } from "@/lib/data"
+
+const SITE_OPTIONS = sites.map(s => ({ label: `${s.name} (${s.id})`, value: s.name, region: s.region }))
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -185,6 +188,81 @@ function PhotoStrip({ photos, onAdd, onRemove }: {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
+// ─── Searchable site combobox ─────────────────────────────────────────────────
+
+function SiteCombobox({ value, onChange, onRegionChange }: {
+  value: string
+  onChange: (v: string) => void
+  onRegionChange: (r: string) => void
+}) {
+  const [query, setQuery] = useState(value)
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const filtered = query.trim()
+    ? SITE_OPTIONS.filter(s => s.label.toLowerCase().includes(query.toLowerCase()))
+    : SITE_OPTIONS
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const select = (opt: typeof SITE_OPTIONS[0]) => {
+    onChange(opt.value)
+    onRegionChange(opt.region)
+    setQuery(opt.label)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative mt-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        <input
+          className="w-full h-10 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Search site..."
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => { setQuery(""); onChange(""); onRegionChange(""); setOpen(true) }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg text-sm">
+          {filtered.map(opt => (
+            <li
+              key={opt.label}
+              onMouseDown={() => select(opt)}
+              className={`px-4 py-2.5 cursor-pointer hover:bg-blue-50 hover:text-blue-700 flex items-center justify-between ${opt.value === value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"}`}
+            >
+              <span>{opt.label}</span>
+              <span className="text-xs text-gray-400">{opt.region}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && filtered.length === 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg px-4 py-3 text-sm text-gray-400">
+          No sites found
+        </div>
+      )}
+    </div>
+  )
+}
 
 function NewInspectionInner() {
   const router = useRouter()
@@ -471,10 +549,11 @@ function NewInspectionInner() {
                   <div className="grid grid-cols-2 gap-5">
                     <div>
                       <Label>Site <span className="text-red-500">*</span></Label>
-                      <select className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={site} onChange={e => setSite(e.target.value)}>
-                        <option value="">Select a site</option>
-                        {["Baiyema (1418)","Hotel Africa 2 (1443)","King Farm (1440)","Banjor Road (1508)","Gbarnga 8 (1801)","Duport Road Junction (1179)","Public School Community (1347)"].map(s => <option key={s}>{s}</option>)}
-                      </select>
+                      <SiteCombobox
+                        value={site}
+                        onChange={setSite}
+                        onRegionChange={setRegion}
+                      />
                     </div>
                     <div>
                       <Label>Technician</Label>
