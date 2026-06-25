@@ -11,7 +11,6 @@ const navItems = [
   { href: "/sites", label: "Sites" },
   { href: "/work-orders", label: "Work Orders" },
   { href: "/checklists", label: "Checklists" },
-  { href: "/technicians", label: "Technicians" },
   { href: "/reports", label: "Reports" },
 ]
 
