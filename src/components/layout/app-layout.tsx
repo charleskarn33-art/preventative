@@ -1,4 +1,4 @@
-import { Sidebar } from "./sidebar"
+import { TopNav } from "./top-nav"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -6,8 +6,8 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar />
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <TopNav />
       <main className="flex-1 overflow-auto">
         {children}
       </main>

@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,7 +28,7 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <Header title="Settings" subtitle="Platform configuration and system preferences" />
+      
       <div className="p-6">
         <Tabs defaultValue="organization" className="space-y-4">
           <TabsList>
@@ -56,11 +55,11 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Company Name</Label>
-                    <Input className="mt-1" defaultValue="TelcoCare Operations Ltd" />
+                    <Input className="mt-1" defaultValue="IPT PowerTech Ltd" />
                   </div>
                   <div>
                     <Label>Platform Name</Label>
-                    <Input className="mt-1" defaultValue="TelcoCare PM" />
+                    <Input className="mt-1" defaultValue="IPT PowerTech" />
                   </div>
                   <div>
                     <Label>Primary Region</Label>

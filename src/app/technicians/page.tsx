@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { Header } from "@/components/layout/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,14 +10,14 @@ import { Progress } from "@/components/ui/progress"
 import { Search, Plus, Phone, Mail, MapPin, Wrench, CheckCircle2, Clock } from "lucide-react"
 
 const technicians = [
-  { id: "TECH-001", name: "John Odhiambo", email: "john.o@telcocare.com", phone: "+254 712 345 678", region: "Nyanza", sites: 12, completedThisMonth: 8, totalThisMonth: 10, status: "active", lastActive: "2 hours ago", skills: ["Generator", "DC System", "Battery"] },
-  { id: "TECH-002", name: "Mary Wanjiku", email: "mary.w@telcocare.com", phone: "+254 723 456 789", region: "Nairobi", sites: 18, completedThisMonth: 12, totalThisMonth: 14, status: "on_site", lastActive: "30 min ago", skills: ["Generator", "Solar", "Cleaning"] },
-  { id: "TECH-003", name: "Peter Kamau", email: "peter.k@telcocare.com", phone: "+254 734 567 890", region: "Coast", sites: 9, completedThisMonth: 5, totalThisMonth: 8, status: "on_site", lastActive: "1 hour ago", skills: ["DC System", "RMS", "Battery"] },
-  { id: "TECH-004", name: "Grace Akinyi", email: "grace.a@telcocare.com", phone: "+254 745 678 901", region: "Rift Valley", sites: 7, completedThisMonth: 3, totalThisMonth: 6, status: "offline", lastActive: "1 day ago", skills: ["Generator", "DC System"] },
-  { id: "TECH-005", name: "David Mwangi", email: "david.m@telcocare.com", phone: "+254 756 789 012", region: "Rift Valley", sites: 14, completedThisMonth: 9, totalThisMonth: 11, status: "active", lastActive: "4 hours ago", skills: ["Solar", "Battery", "Cleaning"] },
-  { id: "TECH-006", name: "James Njoroge", email: "james.n@telcocare.com", phone: "+254 767 890 123", region: "Central", sites: 11, completedThisMonth: 10, totalThisMonth: 10, status: "active", lastActive: "1 hour ago", skills: ["Generator", "DC System", "RMS"] },
-  { id: "TECH-007", name: "Susan Wahu", email: "susan.w@telcocare.com", phone: "+254 778 901 234", region: "Central", sites: 6, completedThisMonth: 2, totalThisMonth: 5, status: "offline", lastActive: "2 days ago", skills: ["Solar", "Cleaning"] },
-  { id: "TECH-008", name: "Alex Ochieng", email: "alex.o@telcocare.com", phone: "+254 789 012 345", region: "Nyanza", sites: 10, completedThisMonth: 7, totalThisMonth: 9, status: "active", lastActive: "3 hours ago", skills: ["Generator", "Battery", "Solar"] },
+  { id: "TECH-001", name: "John Odhiambo", email: "john.o@iptpowertech.com", phone: "+254 712 345 678", region: "Nyanza", sites: 12, completedThisMonth: 8, totalThisMonth: 10, status: "active", lastActive: "2 hours ago", skills: ["Generator", "DC System", "Battery"] },
+  { id: "TECH-002", name: "Mary Wanjiku", email: "mary.w@iptpowertech.com", phone: "+254 723 456 789", region: "Nairobi", sites: 18, completedThisMonth: 12, totalThisMonth: 14, status: "on_site", lastActive: "30 min ago", skills: ["Generator", "Solar", "Cleaning"] },
+  { id: "TECH-003", name: "Peter Kamau", email: "peter.k@iptpowertech.com", phone: "+254 734 567 890", region: "Coast", sites: 9, completedThisMonth: 5, totalThisMonth: 8, status: "on_site", lastActive: "1 hour ago", skills: ["DC System", "RMS", "Battery"] },
+  { id: "TECH-004", name: "Grace Akinyi", email: "grace.a@iptpowertech.com", phone: "+254 745 678 901", region: "Rift Valley", sites: 7, completedThisMonth: 3, totalThisMonth: 6, status: "offline", lastActive: "1 day ago", skills: ["Generator", "DC System"] },
+  { id: "TECH-005", name: "David Mwangi", email: "david.m@iptpowertech.com", phone: "+254 756 789 012", region: "Rift Valley", sites: 14, completedThisMonth: 9, totalThisMonth: 11, status: "active", lastActive: "4 hours ago", skills: ["Solar", "Battery", "Cleaning"] },
+  { id: "TECH-006", name: "James Njoroge", email: "james.n@iptpowertech.com", phone: "+254 767 890 123", region: "Central", sites: 11, completedThisMonth: 10, totalThisMonth: 10, status: "active", lastActive: "1 hour ago", skills: ["Generator", "DC System", "RMS"] },
+  { id: "TECH-007", name: "Susan Wahu", email: "susan.w@iptpowertech.com", phone: "+254 778 901 234", region: "Central", sites: 6, completedThisMonth: 2, totalThisMonth: 5, status: "offline", lastActive: "2 days ago", skills: ["Solar", "Cleaning"] },
+  { id: "TECH-008", name: "Alex Ochieng", email: "alex.o@iptpowertech.com", phone: "+254 789 012 345", region: "Nyanza", sites: 10, completedThisMonth: 7, totalThisMonth: 9, status: "active", lastActive: "3 hours ago", skills: ["Generator", "Battery", "Solar"] },
 ]
 
 const statusConfig = {
@@ -48,7 +47,7 @@ export default function TechniciansPage() {
 
   return (
     <AppLayout>
-      <Header title="Technician Management" subtitle="Monitor field technicians and PM completion performance" />
+      
       <div className="p-6 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3">
