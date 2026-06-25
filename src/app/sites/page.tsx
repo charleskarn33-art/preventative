@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import * as XLSX from "xlsx"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -128,37 +129,33 @@ function TechniciansTab() {
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        const text = ev.target?.result as string
-        const lines = text.split(/\r?\n/).filter(l => l.trim())
-        if (lines.length < 2) { setImportError("File appears empty or has no data rows."); return }
-        const rows = lines.slice(1) // skip header
-        const imported: Tech[] = rows.map((row, i) => {
-          const cols = row.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
-          return {
-            id: `T-${String(techList.length + i + 1).padStart(3, "0")}`,
-            name: cols[0] || "",
-            region: cols[1] || "",
-            phone: cols[2] || "",
-            status: cols[3] || "active",
-            sites: parseInt(cols[4] || "0") || 0,
-          }
-        }).filter(t => t.name)
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer)
+        const wb = XLSX.read(data, { type: "array" })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" })
+        if (rows.length === 0) { setImportError("File appears empty or has no data rows."); return }
+        const imported: Tech[] = rows.map((row, i) => ({
+          id: `T-${String(techList.length + i + 1).padStart(3, "0")}`,
+          name:   String(row["Name"]   || row["name"]   || "").trim(),
+          region: String(row["Region"] || row["region"] || "").trim(),
+          phone:  String(row["Phone"]  || row["phone"]  || "").trim(),
+          status: String(row["Status"] || row["status"] || "active").trim(),
+          sites:  parseInt(String(row["Sites"] || row["sites"] || "0")) || 0,
+        })).filter(t => t.name)
         setTechList(prev => [...prev, ...imported])
         setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported successfully.`)
       } catch {
-        setImportError("Failed to parse file. Ensure it is CSV format.")
+        setImportError("Failed to parse file. Please check the format.")
       }
     }
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
     e.target.value = ""
   }
 
   const downloadTemplate = () => {
-    const csv = "Name,Region,Phone,Status,Sites\nJohn Doe,Montserrado,+231 770 000 001,active,3\n"
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href = url; a.download = "technicians_template.csv"; a.click()
-    URL.revokeObjectURL(url)
+    const ws = XLSX.utils.json_to_sheet([{ Name: "John Doe", Region: "Montserrado", Phone: "+231 770 000 001", Status: "active", Sites: 3 }])
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Technicians")
+    XLSX.writeFile(wb, "technicians_template.xlsx")
   }
 
   const filtered = techList.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.region.toLowerCase().includes(search.toLowerCase()))
@@ -337,11 +334,9 @@ function SitesTab() {
   const handleDelete = (id: number) => setSiteList(siteList.filter(s => s.id !== id))
 
   const downloadTemplate = () => {
-    const csv = "Name,Region,Status,Type,Generators,KVA,Panels,Technicians\nBaiyema,Bong,active,Greenfield,1,30,14,\"John Doe\"\n"
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href = url; a.download = "sites_template.csv"; a.click()
-    URL.revokeObjectURL(url)
+    const ws = XLSX.utils.json_to_sheet([{ Name: "Baiyema", Region: "Bong", Status: "active", Type: "Greenfield", Generators: 1, KVA: 30, Panels: 14, Technicians: "John Doe" }])
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sites")
+    XLSX.writeFile(wb, "sites_template.xlsx")
   }
 
   const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -352,18 +347,28 @@ function SitesTab() {
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        const lines = (ev.target?.result as string).split(/\r?\n/).filter(l => l.trim())
-        if (lines.length < 2) { setImportError("File appears empty or has no data rows."); return }
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer)
+        const wb = XLSX.read(data, { type: "array" })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" })
+        if (rows.length === 0) { setImportError("File appears empty or has no data rows."); return }
         let base = nextId()
-        const imported: SiteRecord[] = lines.slice(1).map(row => {
-          const c = row.split(",").map(x => x.trim().replace(/^"|"$/g, ""))
-          return { id: base++, name: c[0] || "", region: c[1] || "", status: c[2] || "active", type: c[3] || "Greenfield", gens: parseInt(c[4]) || 0, kva: parseInt(c[5]) || 0, panels: parseInt(c[6]) || 0, techs: c[7] || "" }
-        }).filter(s => s.name)
+        const imported: SiteRecord[] = rows.map(row => ({
+          id: base++,
+          name:   String(row["Name"]        || row["name"]        || "").trim(),
+          region: String(row["Region"]      || row["region"]      || "").trim(),
+          status: String(row["Status"]      || row["status"]      || "active").trim(),
+          type:   String(row["Type"]        || row["type"]        || "Greenfield").trim(),
+          gens:   parseInt(String(row["Generators"] || row["generators"] || "0")) || 0,
+          kva:    parseInt(String(row["KVA"]        || row["kva"]        || "0")) || 0,
+          panels: parseInt(String(row["Panels"]     || row["panels"]     || "0")) || 0,
+          techs:  String(row["Technicians"] || row["technicians"] || "").trim(),
+        })).filter(s => s.name)
         setSiteList(prev => [...prev, ...imported])
         setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
-      } catch { setImportError("Failed to parse file. Ensure it is CSV format.") }
+      } catch { setImportError("Failed to parse file. Please check the format.") }
     }
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
     e.target.value = ""
   }
 
