@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import * as XLSX from "xlsx"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,8 +126,9 @@ function TechniciansTab() {
       return
     }
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
+        const XLSX = await import("xlsx")
         const data = new Uint8Array(ev.target?.result as ArrayBuffer)
         const wb = XLSX.read(data, { type: "array" })
         const ws = wb.Sheets[wb.SheetNames[0]]
@@ -144,7 +144,8 @@ function TechniciansTab() {
         })).filter(t => t.name)
         setTechList(prev => [...prev, ...imported])
         setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported successfully.`)
-      } catch {
+      } catch (err) {
+        console.error("Import error:", err)
         setImportError("Failed to parse file. Please check the format.")
       }
     }
@@ -152,7 +153,8 @@ function TechniciansTab() {
     e.target.value = ""
   }
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await import("xlsx")
     const ws = XLSX.utils.json_to_sheet([{ Name: "John Doe", Region: "Montserrado", Phone: "+231 770 000 001", Status: "active", Sites: 3 }])
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Technicians")
     XLSX.writeFile(wb, "technicians_template.xlsx")
@@ -333,7 +335,8 @@ function SitesTab() {
 
   const handleDelete = (id: number) => setSiteList(siteList.filter(s => s.id !== id))
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await import("xlsx")
     const ws = XLSX.utils.json_to_sheet([{ Name: "Baiyema", Region: "Bong", Status: "active", Type: "Greenfield", Generators: 1, KVA: 30, Panels: 14, Technicians: "John Doe" }])
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sites")
     XLSX.writeFile(wb, "sites_template.xlsx")
@@ -345,8 +348,9 @@ function SitesTab() {
     if (!file) return
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) { setImportError("Please upload .xlsx, .xls, or .csv"); e.target.value = ""; return }
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
+        const XLSX = await import("xlsx")
         const data = new Uint8Array(ev.target?.result as ArrayBuffer)
         const wb = XLSX.read(data, { type: "array" })
         const ws = wb.Sheets[wb.SheetNames[0]]
@@ -366,7 +370,10 @@ function SitesTab() {
         })).filter(s => s.name)
         setSiteList(prev => [...prev, ...imported])
         setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
-      } catch { setImportError("Failed to parse file. Please check the format.") }
+      } catch (err) {
+        console.error("Import error:", err)
+        setImportError("Failed to parse file. Please check the format.")
+      }
     }
     reader.readAsArrayBuffer(file)
     e.target.value = ""
