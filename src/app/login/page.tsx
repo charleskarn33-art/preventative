@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Activity, Eye, EyeOff, Zap, Shield, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -28,7 +26,8 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    router.push("/dashboard")
+    // Hard redirect so the session cookie is sent with the first proxied request
+    window.location.href = "/dashboard"
   }
 
   return (
