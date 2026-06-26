@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress"
 import { Search, Plus, MapPin, Zap, LayoutGrid, Pencil, Trash2, Calendar, User, Upload, FileText, ClipboardList, CheckSquare, Radio } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { sites, technicians } from "@/lib/data"
+import { supabase } from "@/lib/supabase"
+import type { SiteStatus, TowerType } from "@/types/database"
 
 const users = [
   { id: "U-001", name: "Charles J. Karn", email: "charles@iptpowertech.com", role: "Super Admin", region: "All", status: "active" },
@@ -89,14 +91,32 @@ type Tech = { id: string; name: string; region: string; sites: number; status: s
 
 const emptyForm = () => ({ name: "", region: "", phone: "", status: "active", sites: 0 })
 
+const TECHS_KEY = "ipt_technicians"
+
 function TechniciansTab() {
   const [techList, setTechList] = useState<Tech[]>([...technicians])
+  const [loaded, setLoaded] = useState(false)
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
   const [editTarget, setEditTarget] = useState<Tech | null>(null)
   const [form, setForm] = useState(emptyForm())
   const [importError, setImportError] = useState("")
   const [importSuccess, setImportSuccess] = useState("")
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(TECHS_KEY)
+      if (saved) setTechList(JSON.parse(saved))
+    } catch {}
+    setLoaded(true)
+  }, [])
+
+  // Persist to localStorage whenever list changes
+  useEffect(() => {
+    if (!loaded) return
+    localStorage.setItem(TECHS_KEY, JSON.stringify(techList))
+  }, [techList, loaded])
 
   const nextId = () => `T-${String(techList.length + 1).padStart(3, "0")}`
 
@@ -116,49 +136,62 @@ function TechniciansTab() {
 
   const handleDelete = (id: string) => setTechList(techList.filter(t => t.id !== id))
 
-  const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const parseRows = (rows: Record<string, string>[], startLen: number): Tech[] =>
+    rows.map((row, i) => ({
+      id: `T-${String(startLen + i + 1).padStart(3, "0")}`,
+      name:   (row["Name"]   || row["name"]   || "").trim(),
+      region: (row["Region"] || row["region"] || "").trim(),
+      phone:  (row["Phone"]  || row["phone"]  || "").trim(),
+      status: (row["Status"] || row["status"] || "active").trim(),
+      sites:  parseInt(row["Sites"] || row["sites"] || "0") || 0,
+    })).filter(t => t.name)
+
+  const handleExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(""); setImportSuccess("")
     const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      setImportError("Please upload an .xlsx, .xls, or .csv file.")
-      e.target.value = ""
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        const text = ev.target?.result as string
-        const lines = text.split(/\r?\n/).filter(l => l.trim())
-        if (lines.length < 2) { setImportError("File appears empty or has no data rows."); return }
-        const rows = lines.slice(1) // skip header
-        const imported: Tech[] = rows.map((row, i) => {
-          const cols = row.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
-          return {
-            id: `T-${String(techList.length + i + 1).padStart(3, "0")}`,
-            name: cols[0] || "",
-            region: cols[1] || "",
-            phone: cols[2] || "",
-            status: cols[3] || "active",
-            sites: parseInt(cols[4] || "0") || 0,
-          }
-        }).filter(t => t.name)
-        setTechList(prev => [...prev, ...imported])
-        setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported successfully.`)
-      } catch {
-        setImportError("Failed to parse file. Ensure it is CSV format.")
-      }
-    }
-    reader.readAsText(file)
+    if (!file) { return }
     e.target.value = ""
+    try {
+      let rows: Record<string, string>[] = []
+      if (file.name.match(/\.csv$/i)) {
+        const text = await file.text()
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) { setImportError("File appears empty."); return }
+        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
+        rows = lines.slice(1).map(line => {
+          const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = cols[i] || "" })
+          return obj
+        })
+      } else if (file.name.match(/\.(xlsx|xls)$/i)) {
+        const readXlsxFile = (await import("read-excel-file/browser")).default
+        const sheets = await readXlsxFile(file); const xlsRows = sheets[0]?.data ?? []
+        if (xlsRows.length < 2) { setImportError("File appears empty."); return }
+        const headers = xlsRows[0].map(h => String(h ?? ""))
+        rows = xlsRows.slice(1).map(row => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = String(row[i] ?? "") })
+          return obj
+        })
+      } else {
+        setImportError("Please upload an .xlsx, .xls, or .csv file."); return
+      }
+      const imported = parseRows(rows, techList.length)
+      if (imported.length === 0) { setImportError("No valid rows found. Check column names: Name, Region, Phone, Status, Sites"); return }
+      setTechList(prev => [...prev, ...imported])
+      setImportSuccess(`${imported.length} technician${imported.length !== 1 ? "s" : ""} imported.`)
+    } catch (err) {
+      console.error(err)
+      setImportError("Failed to parse file. Check format.")
+    }
   }
 
   const downloadTemplate = () => {
     const csv = "Name,Region,Phone,Status,Sites\nJohn Doe,Montserrado,+231 770 000 001,active,3\n"
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href = url; a.download = "technicians_template.csv"; a.click()
-    URL.revokeObjectURL(url)
+    const a = document.createElement("a")
+    a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
+    a.download = "technicians_template.csv"; a.click()
   }
 
   const filtered = techList.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.region.toLowerCase().includes(search.toLowerCase()))
@@ -293,10 +326,24 @@ function TechniciansTab() {
 // ── Sites sub-component with Add/Edit modal + Excel import ───────────────────
 
 type SiteRecord = { id: number; name: string; region: string; status: string; type: string; gens: number; kva: number; panels: number; techs: string }
-const emptySiteForm = () => ({ name: "", region: "", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 0, techs: "" })
+const emptySiteForm = () => ({ siteId: "", name: "", region: "", status: "active", type: "Greenfield", gens: 1, kva: 30, panels: 0, techs: "" })
+
+const SITES_KEY = "ipt_sites"
+
+// Map app type strings to Supabase tower_type enum
+const toTowerType = (t: string): string => {
+  const map: Record<string, string> = { Greenfield: "self_support", Rooftop: "rooftop", Outdoor: "guyed_tower", Indoor: "monopole" }
+  return map[t] ?? "self_support"
+}
+const fromTowerType = (t: string): string => {
+  const map: Record<string, string> = { self_support: "Greenfield", rooftop: "Rooftop", guyed_tower: "Outdoor", monopole: "Indoor", camouflaged: "Outdoor" }
+  return map[t] ?? "Greenfield"
+}
 
 function SitesTab() {
   const [siteList, setSiteList] = useState<SiteRecord[]>([...sites])
+  const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState("")
   const [regionFilter, setRegionFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -306,6 +353,71 @@ function SitesTab() {
   const [form, setForm] = useState(emptySiteForm())
   const [importError, setImportError] = useState("")
   const [importSuccess, setImportSuccess] = useState("")
+
+  // Load from Supabase on mount, fall back to localStorage
+  useEffect(() => {
+    const load = async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: rawData, error } = await (supabase as any)
+          .from("tower_sites")
+          .select("site_id, site_name, region, county, status, tower_type, generators, kva, panels, technicians")
+          .order("site_id")
+        type SiteRow = { site_id: string; site_name: string; region: string; status: string; tower_type: string; generators: number; kva: number; panels: number; technicians: string | null }
+        const data = rawData as SiteRow[] | null
+        if (!error && data && data.length > 0) {
+          const merged: SiteRecord[] = data.map(row => ({
+            id: parseInt(row.site_id) || 0,
+            name: row.site_name,
+            region: row.region,
+            status: row.status,
+            type: fromTowerType(row.tower_type),
+            gens: row.generators ?? 0,
+            kva: row.kva ?? 0,
+            panels: row.panels ?? 0,
+            techs: row.technicians ?? "",
+          }))
+          setSiteList(merged)
+          localStorage.setItem(SITES_KEY, JSON.stringify(merged))
+          setLoaded(true)
+          return
+        }
+      } catch {}
+      // Supabase unavailable — load from localStorage
+      try {
+        const saved = localStorage.getItem(SITES_KEY)
+        if (saved) setSiteList(JSON.parse(saved))
+      } catch {}
+      setLoaded(true)
+    }
+    load()
+  }, [])
+
+  // Persist to localStorage whenever list changes
+  useEffect(() => {
+    if (!loaded) return
+    localStorage.setItem(SITES_KEY, JSON.stringify(siteList))
+  }, [siteList, loaded])
+
+  const upsertToSupabase = async (s: SiteRecord) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("tower_sites").upsert({
+      site_id: String(s.id),
+      site_name: s.name,
+      region: s.region,
+      county: s.region,
+      status: s.status as SiteStatus,
+      tower_type: toTowerType(s.type) as TowerType,
+      generators: s.gens,
+      kva: s.kva,
+      panels: s.panels,
+      technicians: s.techs,
+    }, { onConflict: "site_id" })
+  }
+
+  const deleteFromSupabase = async (id: number) => {
+    await supabase.from("tower_sites").delete().eq("site_id", String(id))
+  }
 
   const siteRegions = [...new Set(siteList.map(s => s.region))].sort()
   const nextId = () => Math.max(...siteList.map(s => s.id), 1000) + 1
@@ -321,50 +433,101 @@ function SitesTab() {
   const toggleSelect = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const openAdd = () => { setEditTarget(null); setForm(emptySiteForm()); setShowModal(true) }
-  const openEdit = (s: SiteRecord) => { setEditTarget(s); setForm({ name: s.name, region: s.region, status: s.status, type: s.type, gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs }); setShowModal(true) }
+  const openEdit = (s: SiteRecord) => { setEditTarget(s); setForm({ siteId: String(s.id), name: s.name, region: s.region, status: s.status, type: s.type, gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs }); setShowModal(true) }
   const closeModal = () => { setShowModal(false); setEditTarget(null) }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.region) return
+    setSaving(true)
+    const newId = parseInt(form.siteId) || nextId()
+    const record: SiteRecord = { id: newId, name: form.name, region: form.region, status: form.status, type: form.type, gens: form.gens, kva: form.kva, panels: form.panels, techs: form.techs }
     if (editTarget) {
-      setSiteList(siteList.map(s => s.id === editTarget.id ? { ...s, ...form } : s))
+      setSiteList(siteList.map(s => s.id === editTarget.id ? record : s))
     } else {
-      setSiteList([...siteList, { id: nextId(), ...form }])
+      setSiteList(prev => [...prev, record])
     }
+    await upsertToSupabase(record).catch(() => {})
+    setSaving(false)
     closeModal()
   }
 
-  const handleDelete = (id: number) => setSiteList(siteList.filter(s => s.id !== id))
-
-  const downloadTemplate = () => {
-    const csv = "Name,Region,Status,Type,Generators,KVA,Panels,Technicians\nBaiyema,Bong,active,Greenfield,1,30,14,\"John Doe\"\n"
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href = url; a.download = "sites_template.csv"; a.click()
-    URL.revokeObjectURL(url)
+  const handleDelete = async (id: number) => {
+    setSiteList(siteList.filter(s => s.id !== id))
+    await deleteFromSupabase(id).catch(() => {})
   }
 
-  const handleExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const downloadTemplate = () => {
+    const csv = "Site ID,Name,Region,Status,Type,Generators,KVA,Panels,Technicians\n1418,Baiyema,Bong,active,Greenfield,1,30,14,John Doe\n"
+    const a = document.createElement("a")
+    a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
+    a.download = "sites_template.csv"; a.click()
+  }
+
+  const handleExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(""); setImportSuccess("")
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) { setImportError("Please upload .xlsx, .xls, or .csv"); e.target.value = ""; return }
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        const lines = (ev.target?.result as string).split(/\r?\n/).filter(l => l.trim())
-        if (lines.length < 2) { setImportError("File appears empty or has no data rows."); return }
-        let base = nextId()
-        const imported: SiteRecord[] = lines.slice(1).map(row => {
-          const c = row.split(",").map(x => x.trim().replace(/^"|"$/g, ""))
-          return { id: base++, name: c[0] || "", region: c[1] || "", status: c[2] || "active", type: c[3] || "Greenfield", gens: parseInt(c[4]) || 0, kva: parseInt(c[5]) || 0, panels: parseInt(c[6]) || 0, techs: c[7] || "" }
-        }).filter(s => s.name)
-        setSiteList(prev => [...prev, ...imported])
-        setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
-      } catch { setImportError("Failed to parse file. Ensure it is CSV format.") }
-    }
-    reader.readAsText(file)
     e.target.value = ""
+    try {
+      let rows: Record<string, string>[] = []
+      if (file.name.match(/\.csv$/i)) {
+        const text = await file.text()
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        if (lines.length < 2) { setImportError("File appears empty."); return }
+        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
+        rows = lines.slice(1).map(line => {
+          const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = cols[i] || "" })
+          return obj
+        })
+      } else if (file.name.match(/\.(xlsx|xls)$/i)) {
+        const readXlsxFile = (await import("read-excel-file/browser")).default
+        const sheets = await readXlsxFile(file); const xlsRows = sheets[0]?.data ?? []
+        if (xlsRows.length < 2) { setImportError("File appears empty."); return }
+        const headers = xlsRows[0].map(h => String(h ?? ""))
+        rows = xlsRows.slice(1).map(row => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, i) => { obj[h] = String(row[i] ?? "") })
+          return obj
+        })
+      } else {
+        setImportError("Please upload an .xlsx, .xls, or .csv file."); return
+      }
+      let base = nextId()
+      const imported: SiteRecord[] = rows.map(row => ({
+        id: parseInt(row["Site ID"] || row["site_id"] || row["SiteID"] || row["id"] || "0") || base++,
+        name:   (row["Name"]        || row["name"]        || "").trim(),
+        region: (row["Region"]      || row["region"]      || "").trim(),
+        status: (row["Status"]      || row["status"]      || "active").trim(),
+        type:   (row["Type"]        || row["type"]        || "Greenfield").trim(),
+        gens:   parseInt(row["Generators"] || row["generators"] || "0") || 0,
+        kva:    parseInt(row["KVA"]        || row["kva"]        || "0") || 0,
+        panels: parseInt(row["Panels"]     || row["panels"]     || "0") || 0,
+        techs:  (row["Technicians"] || row["technicians"] || "").trim(),
+      })).filter(s => s.name)
+      if (imported.length === 0) { setImportError("No valid rows found. Check column names: Name, Region, Status, Type, Generators, KVA, Panels, Technicians"); return }
+      setSiteList(prev => [...prev, ...imported])
+      // Bulk upsert to Supabase
+      const upsertRows = imported.map(s => ({
+        site_id: String(s.id),
+        site_name: s.name,
+        region: s.region,
+        county: s.region,
+        status: s.status as SiteStatus,
+        tower_type: toTowerType(s.type) as TowerType,
+        generators: s.gens,
+        kva: s.kva,
+        panels: s.panels,
+        technicians: s.techs,
+      }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
+      setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
+    } catch (err) {
+      console.error(err)
+      setImportError("Failed to parse file. Check format.")
+    }
   }
 
   return (
@@ -455,7 +618,11 @@ function SitesTab() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-base font-bold text-gray-900 mb-5">{editTarget ? "Edit Site" : "Add Site"}</h2>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Site ID <span className="text-red-500">*</span></label>
+                <Input className="mt-1" placeholder="e.g. 1418" type="number" value={form.siteId} onChange={e => setForm({ ...form, siteId: e.target.value })} />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-gray-600">Site Name <span className="text-red-500">*</span></label>
                 <Input className="mt-1" placeholder="e.g. Baiyema" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               </div>
@@ -501,8 +668,8 @@ function SitesTab() {
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="outline" className="flex-1" onClick={closeModal}>Cancel</Button>
-              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.name.trim() || !form.region}>
-                {editTarget ? "Save Changes" : "Add Site"}
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.siteId || !form.name.trim() || !form.region || saving}>
+                {saving ? "Saving…" : editTarget ? "Save Changes" : "Add Site"}
               </Button>
             </div>
           </div>

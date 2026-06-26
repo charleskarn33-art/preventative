@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Save, LayoutTemplate, BookmarkPlus, MapPin, Plus, Pencil, Trash2, Check, X, ImagePlus, Camera, AlertCircle, CheckCircle2, Search } from "lucide-react"
 import { sites } from "@/lib/data"
+import { supabase } from "@/lib/supabase"
 
 const SITE_OPTIONS = sites.map(s => ({
   label: `${s.name} (${s.id})`,
@@ -307,23 +308,109 @@ function NewInspectionInner() {
 
   const handleSubmit = async () => {
     setSubmitting(true)
-    const id = params.get("id")
-    if (id) {
-      const payload = {
-        id, site, technician, date, region, genBrand, numGens, capacity, gps, notes,
-        dcAmps, battVolts, damagedPanels, progress,
-        sections: sections.map(s => ({
-          id: s.id, label: s.label,
-          items: s.items.map(i => ({
-            id: i.id, question: i.question, response: i.response,
-            comment: i.comment, corrective: i.corrective,
-          })),
-        })),
-        savedAt: new Date().toISOString(),
+    const existingId = params.get("id")
+
+    try {
+      // Build a stable work order number
+      const woNumber = existingId
+        ? `WO-${existingId}`
+        : `WO-${Date.now()}`
+
+      // Find matching tower_site uuid from Supabase
+      const { data: siteRows } = await supabase
+        .from("tower_sites")
+        .select("id")
+        .ilike("site_name", site)
+        .limit(1)
+      const towerSiteId = (siteRows as { id: string }[] | null)?.[0]?.id ?? null
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      let workOrderId: string | null = null
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any
+
+      if (isEdit && existingId) {
+        // Update existing work order
+        const { data: woData } = await db
+          .from("work_orders")
+          .update({
+            pm_type: "monthly",
+            status: "completed",
+            due_date: date,
+            completed_at: new Date().toISOString(),
+            notes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("work_order_number", `WO-${existingId}`)
+          .select("id")
+          .single()
+        workOrderId = woData?.id ?? null
+
+        // Delete old checklist responses before re-inserting
+        if (workOrderId) {
+          await db.from("checklist_responses").delete().eq("work_order_id", workOrderId)
+        }
+      } else {
+        // Insert new work order
+        const { data: woData } = await db
+          .from("work_orders")
+          .insert({
+            work_order_number: woNumber,
+            site_id: towerSiteId,
+            pm_type: "monthly",
+            status: "completed",
+            priority: "medium",
+            due_date: date,
+            completed_at: new Date().toISOString(),
+            notes,
+          })
+          .select("id")
+          .single()
+        workOrderId = woData?.id ?? null
       }
-      localStorage.setItem(`inspection_${id}`, JSON.stringify(payload))
+
+      // Insert checklist responses
+      if (workOrderId) {
+        const categoryMap: Record<number, string> = {
+          2: "generator", 3: "dc_system", 4: "battery", 5: "solar", 6: "cleaning", 7: "rms",
+        }
+        const responses = sections.slice(1).flatMap(sec =>
+          sec.items.map(item => ({
+            work_order_id: workOrderId!,
+            category: categoryMap[sec.id] ?? "generator",
+            question_key: item.question,
+            response: (item.response.toLowerCase() || "na") as "yes" | "no" | "na",
+            comment: item.comment || null,
+            corrective_action: item.corrective || null,
+          }))
+        )
+        if (responses.length > 0) {
+          await db.from("checklist_responses").insert(responses)
+        }
+      }
+    } catch {
+      // Supabase unavailable — fall through to localStorage backup
     }
-    await new Promise(r => setTimeout(r, 800))
+
+    // Always save to localStorage as local cache
+    const localId = existingId ?? String(Date.now())
+    const payload = {
+      id: localId, site, technician, date, region, genBrand, numGens, capacity, gps, notes,
+      dcAmps, battVolts, damagedPanels, progress,
+      sections: sections.map(s => ({
+        id: s.id, label: s.label,
+        items: s.items.map(i => ({
+          id: i.id, question: i.question, response: i.response,
+          comment: i.comment, corrective: i.corrective,
+        })),
+      })),
+      savedAt: new Date().toISOString(),
+    }
+    localStorage.setItem(`inspection_${localId}`, JSON.stringify(payload))
+
     setSubmitting(false)
     setSubmitted(true)
     setTimeout(() => router.push("/work-orders"), 1500)
