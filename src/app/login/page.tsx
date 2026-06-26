@@ -31,13 +31,6 @@ export default function LoginPage() {
     router.push("/dashboard")
   }
 
-  const demoLogins = [
-    { role: "Super Admin", email: "admin@iptpowertech.com", color: "bg-blue-600" },
-    { role: "Manager", email: "manager@iptpowertech.com", color: "bg-purple-600" },
-    { role: "Supervisor", email: "supervisor@iptpowertech.com", color: "bg-green-600" },
-    { role: "Technician", email: "tech@iptpowertech.com", color: "bg-amber-600" },
-  ]
-
   return (
     <div className="flex min-h-screen">
       {/* Left panel */}
@@ -139,24 +132,6 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          <div className="mt-8">
-            <p className="text-xs text-gray-500 text-center mb-3">Quick access — demo accounts</p>
-            <div className="grid grid-cols-2 gap-2">
-              {demoLogins.map((demo) => (
-                <button
-                  key={demo.role}
-                  onClick={() => setForm({ email: demo.email, password: "demo123" })}
-                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2.5 text-left text-xs hover:bg-gray-50 transition-colors"
-                >
-                  <div className={`h-5 w-5 rounded-full ${demo.color} flex items-center justify-center text-white text-[9px] font-bold shrink-0`}>
-                    {demo.role[0]}
-                  </div>
-                  <span className="font-medium text-gray-700">{demo.role}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <p className="text-xs text-gray-400 text-center mt-6">
             Don&apos;t have an account?{" "}
