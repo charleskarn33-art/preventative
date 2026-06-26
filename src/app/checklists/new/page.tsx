@@ -329,9 +329,12 @@ function NewInspectionInner() {
 
       let workOrderId: string | null = null
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any
+
       if (isEdit && existingId) {
         // Update existing work order
-        const { data: woData } = await supabase
+        const { data: woData } = await db
           .from("work_orders")
           .update({
             pm_type: "monthly",
@@ -348,11 +351,11 @@ function NewInspectionInner() {
 
         // Delete old checklist responses before re-inserting
         if (workOrderId) {
-          await supabase.from("checklist_responses").delete().eq("work_order_id", workOrderId)
+          await db.from("checklist_responses").delete().eq("work_order_id", workOrderId)
         }
       } else {
         // Insert new work order
-        const { data: woData } = await supabase
+        const { data: woData } = await db
           .from("work_orders")
           .insert({
             work_order_number: woNumber,
@@ -385,7 +388,7 @@ function NewInspectionInner() {
           }))
         )
         if (responses.length > 0) {
-          await supabase.from("checklist_responses").insert(responses)
+          await db.from("checklist_responses").insert(responses)
         }
       }
     } catch {
