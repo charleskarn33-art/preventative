@@ -67,24 +67,24 @@ export default function WorkOrdersPage() {
           .select("work_order_id, response")
           .in("work_order_id", orderIds)
 
-        const responseMap: Record<string, { total: number; answered: number }> = {}
-        responses?.forEach(r => {
+        type ResponseRow = { work_order_id: string; response: string }
+        type DataRow = { id: string; work_order_number: string; status: string; due_date: string; tower_sites: { site_id: string; site_name: string; region: string } | null; users: { full_name: string } | null }
+        const responseMap: Record<string, { total: number; answered: number }> = {};
+        (responses as ResponseRow[] ?? []).forEach((r: ResponseRow) => {
           if (!responseMap[r.work_order_id]) responseMap[r.work_order_id] = { total: 0, answered: 0 }
           responseMap[r.work_order_id].total++
           if (r.response && r.response !== "na") responseMap[r.work_order_id].answered++
         })
 
-        const mapped: WorkOrder[] = data.map(o => {
-          const site = o.tower_sites as { site_id: string; site_name: string; region: string } | null
-          const user = o.users as { full_name: string } | null
+        const mapped: WorkOrder[] = (data as DataRow[]).map((o: DataRow) => {
           const rm = responseMap[o.id]
           const progress = rm && rm.total > 0 ? Math.round((rm.answered / rm.total) * 100) : (o.status === "completed" ? 100 : 0)
           return {
             id: o.id,
-            siteCode: site?.site_id ?? o.work_order_number,
-            site: site?.site_name ?? "Unknown Site",
-            region: site?.region ?? "—",
-            tech: user?.full_name ?? "Unassigned",
+            siteCode: o.tower_sites?.site_id ?? o.work_order_number,
+            site: o.tower_sites?.site_name ?? "Unknown Site",
+            region: o.tower_sites?.region ?? "—",
+            tech: o.users?.full_name ?? "Unassigned",
             status: o.status,
             date: o.due_date,
             progress,
