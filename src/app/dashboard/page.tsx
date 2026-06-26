@@ -43,16 +43,19 @@ export default function DashboardPage() {
         // Current user name
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
-          const { data: profile } = await supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: profile } = await (supabase as any)
             .from("users")
             .select("full_name")
             .eq("id", user.id)
             .single()
-          if (profile?.full_name) setUserName(profile.full_name)
+          const p = profile as { full_name: string } | null
+          if (p?.full_name) setUserName(p.full_name)
         }
 
         // Work orders stats
-        const { data: orders } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: orders } = await (supabase as any)
           .from("work_orders")
           .select("id, status, due_date, site_id, tower_sites(site_name, region, county)")
 

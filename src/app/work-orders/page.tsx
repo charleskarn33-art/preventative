@@ -40,7 +40,9 @@ export default function WorkOrdersPage() {
   const loadOrders = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any
+      const { data: rawData, error } = await db
         .from("work_orders")
         .select(`
           id,
@@ -57,13 +59,19 @@ export default function WorkOrdersPage() {
 
       if (error) throw error
 
+      type DataRow = { id: string; work_order_number: string; status: string; due_date: string; pm_type: string; notes: string | null; tower_sites: { site_id: string; site_name: string; region: string } | null; users: { full_name: string } | null }
+      const data = rawData as DataRow[] | null
+
       if (data && data.length > 0) {
         // Get checklist response counts to calculate progress
         const orderIds = data.map(o => o.id)
-        const { data: responses } = await supabase
+        const { data: rawResponses } = await db
           .from("checklist_responses")
           .select("work_order_id, response")
           .in("work_order_id", orderIds)
+
+        type ResponseRow = { work_order_id: string; response: string | null }
+        const responses = rawResponses as ResponseRow[] | null
 
         const responseMap: Record<string, { total: number; answered: number }> = {}
         responses?.forEach(r => {
@@ -73,8 +81,8 @@ export default function WorkOrdersPage() {
         })
 
         const mapped: WorkOrder[] = data.map(o => {
-          const site = o.tower_sites as { site_id: string; site_name: string; region: string } | null
-          const user = o.users as { full_name: string } | null
+          const site = o.tower_sites
+          const user = o.users
           const rm = responseMap[o.id]
           const progress = rm && rm.total > 0 ? Math.round((rm.answered / rm.total) * 100) : (o.status === "completed" ? 100 : 0)
           return {
