@@ -359,33 +359,20 @@ function SitesTab() {
       try {
         const { data, error } = await supabase
           .from("tower_sites")
-          .select("site_id, site_name, region, county, status, tower_type")
+          .select("site_id, site_name, region, county, status, tower_type, generators, kva, panels, technicians")
           .order("site_id")
         if (!error && data && data.length > 0) {
-          // Merge Supabase rows with localStorage extras (gens/kva/panels/techs)
-          const extras: Record<string, Partial<SiteRecord>> = {}
-          try {
-            const saved = localStorage.getItem(SITES_KEY)
-            if (saved) {
-              const arr: SiteRecord[] = JSON.parse(saved)
-              arr.forEach(s => { extras[s.id] = { gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs } })
-            }
-          } catch {}
-          const merged: SiteRecord[] = data.map(row => {
-            const numId = parseInt(row.site_id) || 0
-            const ex = extras[numId] ?? {}
-            return {
-              id: numId,
-              name: row.site_name,
-              region: row.region,
-              status: row.status,
-              type: fromTowerType(row.tower_type),
-              gens: ex.gens ?? 0,
-              kva: ex.kva ?? 0,
-              panels: ex.panels ?? 0,
-              techs: ex.techs ?? "",
-            }
-          })
+          const merged: SiteRecord[] = data.map(row => ({
+            id: parseInt(row.site_id) || 0,
+            name: row.site_name,
+            region: row.region,
+            status: row.status,
+            type: fromTowerType(row.tower_type),
+            gens: row.generators ?? 0,
+            kva: row.kva ?? 0,
+            panels: row.panels ?? 0,
+            techs: row.technicians ?? "",
+          }))
           setSiteList(merged)
           localStorage.setItem(SITES_KEY, JSON.stringify(merged))
           setLoaded(true)
@@ -416,6 +403,10 @@ function SitesTab() {
       county: s.region,
       status: s.status as "active" | "inactive" | "under_maintenance" | "decommissioned",
       tower_type: toTowerType(s.type) as "monopole" | "guyed_tower" | "self_support" | "rooftop" | "camouflaged",
+      generators: s.gens,
+      kva: s.kva,
+      panels: s.panels,
+      technicians: s.techs,
     }, { onConflict: "site_id" })
   }
 
@@ -520,6 +511,10 @@ function SitesTab() {
         county: s.region,
         status: s.status as "active" | "inactive" | "under_maintenance" | "decommissioned",
         tower_type: toTowerType(s.type) as "monopole" | "guyed_tower" | "self_support" | "rooftop" | "camouflaged",
+        generators: s.gens,
+        kva: s.kva,
+        panels: s.panels,
+        technicians: s.techs,
       }))
       await supabase.from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
       setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
