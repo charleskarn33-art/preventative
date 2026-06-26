@@ -6,19 +6,28 @@ import { Activity, Eye, EyeOff, Zap, Shield, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { supabase } from "@/lib/supabase"
 
 export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const [form, setForm] = useState({ email: "", password: "" })
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    // Simulate auth — replace with Supabase auth
-    await new Promise((r) => setTimeout(r, 800))
+    setError("")
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    })
+    if (authError) {
+      setError(authError.message)
+      setLoading(false)
+      return
+    }
     router.push("/dashboard")
   }
 
@@ -123,6 +132,9 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
@@ -134,9 +146,7 @@ export default function LoginPage() {
               {demoLogins.map((demo) => (
                 <button
                   key={demo.role}
-                  onClick={() => {
-                    setForm({ email: demo.email, password: "demo123" })
-                  }}
+                  onClick={() => setForm({ email: demo.email, password: "demo123" })}
                   className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2.5 text-left text-xs hover:bg-gray-50 transition-colors"
                 >
                   <div className={`h-5 w-5 rounded-full ${demo.color} flex items-center justify-center text-white text-[9px] font-bold shrink-0`}>
@@ -147,6 +157,13 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
+
+          <p className="text-xs text-gray-400 text-center mt-6">
+            Don&apos;t have an account?{" "}
+            <a href="mailto:admin@iptpowertech.com" className="text-blue-600 hover:underline">
+              Contact your administrator
+            </a>
+          </p>
         </div>
       </div>
     </div>
