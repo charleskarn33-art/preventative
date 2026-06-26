@@ -39,10 +39,8 @@ export default function WorkOrdersPage() {
 
   const loadOrders = async () => {
     setLoading(true)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
     try {
-      const { data, error } = await db
+      const { data, error } = await supabase
         .from("work_orders")
         .select(`
           id,
@@ -61,30 +59,30 @@ export default function WorkOrdersPage() {
 
       if (data && data.length > 0) {
         // Get checklist response counts to calculate progress
-        const orderIds = data.map((o: { id: string }) => o.id)
-        const { data: responses } = await db
+        const orderIds = data.map(o => o.id)
+        const { data: responses } = await supabase
           .from("checklist_responses")
           .select("work_order_id, response")
           .in("work_order_id", orderIds)
 
-        type ResponseRow = { work_order_id: string; response: string }
-        type DataRow = { id: string; work_order_number: string; status: string; due_date: string; tower_sites: { site_id: string; site_name: string; region: string } | null; users: { full_name: string } | null }
-        const responseMap: Record<string, { total: number; answered: number }> = {};
-        (responses as ResponseRow[] ?? []).forEach((r: ResponseRow) => {
+        const responseMap: Record<string, { total: number; answered: number }> = {}
+        responses?.forEach(r => {
           if (!responseMap[r.work_order_id]) responseMap[r.work_order_id] = { total: 0, answered: 0 }
           responseMap[r.work_order_id].total++
           if (r.response && r.response !== "na") responseMap[r.work_order_id].answered++
         })
 
-        const mapped: WorkOrder[] = (data as DataRow[]).map((o: DataRow) => {
+        const mapped: WorkOrder[] = data.map(o => {
+          const site = o.tower_sites as { site_id: string; site_name: string; region: string } | null
+          const user = o.users as { full_name: string } | null
           const rm = responseMap[o.id]
           const progress = rm && rm.total > 0 ? Math.round((rm.answered / rm.total) * 100) : (o.status === "completed" ? 100 : 0)
           return {
             id: o.id,
-            siteCode: o.tower_sites?.site_id ?? o.work_order_number,
-            site: o.tower_sites?.site_name ?? "Unknown Site",
-            region: o.tower_sites?.region ?? "—",
-            tech: o.users?.full_name ?? "Unassigned",
+            siteCode: site?.site_id ?? o.work_order_number,
+            site: site?.site_name ?? "Unknown Site",
+            region: site?.region ?? "—",
+            tech: user?.full_name ?? "Unassigned",
             status: o.status,
             date: o.due_date,
             progress,

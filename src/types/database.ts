@@ -39,6 +39,10 @@ export interface Database {
           tower_type: TowerType
           installation_date: string | null
           assigned_technician_id: string | null
+          generators: number
+          kva: number
+          panels: number
+          technicians: string | null
           created_at: string
           updated_at: string
           deleted_at: string | null
@@ -68,7 +72,7 @@ export interface Database {
         Row: {
           id: string
           work_order_number: string
-          site_id: string
+          site_id: string | null
           pm_schedule_id: string | null
           pm_type: PMType
           technician_id: string | null

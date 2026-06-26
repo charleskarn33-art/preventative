@@ -10,6 +10,7 @@ import { Search, Plus, MapPin, Zap, LayoutGrid, Pencil, Trash2, Calendar, User, 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { sites, technicians } from "@/lib/data"
 import { supabase } from "@/lib/supabase"
+import type { SiteStatus, TowerType } from "@/types/database"
 
 const users = [
   { id: "U-001", name: "Charles J. Karn", email: "charles@iptpowertech.com", role: "Super Admin", region: "All", status: "active" },
@@ -356,15 +357,13 @@ function SitesTab() {
   // Load from Supabase on mount, fall back to localStorage
   useEffect(() => {
     const load = async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = supabase as any
       try {
-        const { data, error } = await db
+        const { data, error } = await supabase
           .from("tower_sites")
           .select("site_id, site_name, region, county, status, tower_type, generators, kva, panels, technicians")
           .order("site_id")
         if (!error && data && data.length > 0) {
-          const merged: SiteRecord[] = (data as { site_id: string; site_name: string; region: string; status: string; tower_type: string; generators: number; kva: number; panels: number; technicians: string }[]).map(row => ({
+          const merged: SiteRecord[] = data.map(row => ({
             id: parseInt(row.site_id) || 0,
             name: row.site_name,
             region: row.region,
@@ -398,14 +397,13 @@ function SitesTab() {
   }, [siteList, loaded])
 
   const upsertToSupabase = async (s: SiteRecord) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("tower_sites").upsert({
+    await supabase.from("tower_sites").upsert({
       site_id: String(s.id),
       site_name: s.name,
       region: s.region,
       county: s.region,
-      status: s.status as "active" | "inactive" | "under_maintenance" | "decommissioned",
-      tower_type: toTowerType(s.type) as "monopole" | "guyed_tower" | "self_support" | "rooftop" | "camouflaged",
+      status: s.status as SiteStatus,
+      tower_type: toTowerType(s.type) as TowerType,
       generators: s.gens,
       kva: s.kva,
       panels: s.panels,
@@ -414,8 +412,7 @@ function SitesTab() {
   }
 
   const deleteFromSupabase = async (id: number) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("tower_sites").delete().eq("site_id", String(id))
+    await supabase.from("tower_sites").delete().eq("site_id", String(id))
   }
 
   const siteRegions = [...new Set(siteList.map(s => s.region))].sort()
@@ -513,15 +510,14 @@ function SitesTab() {
         site_name: s.name,
         region: s.region,
         county: s.region,
-        status: s.status as "active" | "inactive" | "under_maintenance" | "decommissioned",
-        tower_type: toTowerType(s.type) as "monopole" | "guyed_tower" | "self_support" | "rooftop" | "camouflaged",
+        status: s.status as SiteStatus,
+        tower_type: toTowerType(s.type) as TowerType,
         generators: s.gens,
         kva: s.kva,
         panels: s.panels,
         technicians: s.techs,
       }))
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
+      await supabase.from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
       setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
     } catch (err) {
       console.error(err)
