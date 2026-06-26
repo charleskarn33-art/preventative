@@ -322,7 +322,7 @@ function NewInspectionInner() {
         .select("id")
         .ilike("site_name", site)
         .limit(1)
-      const towerSiteId = siteRows?.[0]?.id ?? null
+      const towerSiteId = (siteRows as { id: string }[] | null)?.[0]?.id ?? null
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
