@@ -356,13 +356,15 @@ function SitesTab() {
   // Load from Supabase on mount, fall back to localStorage
   useEffect(() => {
     const load = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any
       try {
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from("tower_sites")
           .select("site_id, site_name, region, county, status, tower_type, generators, kva, panels, technicians")
           .order("site_id")
         if (!error && data && data.length > 0) {
-          const merged: SiteRecord[] = data.map(row => ({
+          const merged: SiteRecord[] = (data as { site_id: string; site_name: string; region: string; status: string; tower_type: string; generators: number; kva: number; panels: number; technicians: string }[]).map(row => ({
             id: parseInt(row.site_id) || 0,
             name: row.site_name,
             region: row.region,
@@ -396,7 +398,8 @@ function SitesTab() {
   }, [siteList, loaded])
 
   const upsertToSupabase = async (s: SiteRecord) => {
-    await supabase.from("tower_sites").upsert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("tower_sites").upsert({
       site_id: String(s.id),
       site_name: s.name,
       region: s.region,
@@ -411,7 +414,8 @@ function SitesTab() {
   }
 
   const deleteFromSupabase = async (id: number) => {
-    await supabase.from("tower_sites").delete().eq("site_id", String(id))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("tower_sites").delete().eq("site_id", String(id))
   }
 
   const siteRegions = [...new Set(siteList.map(s => s.region))].sort()
@@ -516,7 +520,8 @@ function SitesTab() {
         panels: s.panels,
         technicians: s.techs,
       }))
-      await supabase.from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
       setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
     } catch (err) {
       console.error(err)
