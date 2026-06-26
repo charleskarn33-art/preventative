@@ -39,11 +39,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const load = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any
       try {
         // Current user name
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
-          const { data: profile } = await supabase
+          const { data: profile } = await db
             .from("users")
             .select("full_name")
             .eq("id", user.id)
@@ -52,7 +54,7 @@ export default function DashboardPage() {
         }
 
         // Work orders stats
-        const { data: orders } = await supabase
+        const { data: orders } = await db
           .from("work_orders")
           .select("id, status, due_date, site_id, tower_sites(site_name, region, county)")
 

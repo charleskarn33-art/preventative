@@ -39,8 +39,10 @@ export default function WorkOrdersPage() {
 
   const loadOrders = async () => {
     setLoading(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("work_orders")
         .select(`
           id,
@@ -59,8 +61,8 @@ export default function WorkOrdersPage() {
 
       if (data && data.length > 0) {
         // Get checklist response counts to calculate progress
-        const orderIds = data.map(o => o.id)
-        const { data: responses } = await supabase
+        const orderIds = data.map((o: { id: string }) => o.id)
+        const { data: responses } = await db
           .from("checklist_responses")
           .select("work_order_id, response")
           .in("work_order_id", orderIds)
@@ -153,7 +155,8 @@ export default function WorkOrdersPage() {
 
   const remove = async (id: string) => {
     setItems(items.filter(w => w.id !== id))
-    await supabase.from("work_orders").update({ deleted_at: new Date().toISOString() }).eq("id", id).catch(() => {})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("work_orders").update({ deleted_at: new Date().toISOString() }).eq("id", id).catch(() => {})
   }
 
   return (
