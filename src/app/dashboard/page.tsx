@@ -58,11 +58,13 @@ export default function DashboardPage() {
           .from("work_orders")
           .select("id, status, due_date, site_id, tower_sites(site_name, region, county)")
 
-        if (orders && orders.length > 0) {
-          const total = orders.length
-          const completed = orders.filter(o => o.status === "completed").length
-          const inProgress = orders.filter(o => o.status === "in_progress" || o.status === "assigned").length
-          const overdue = orders.filter(o => o.status === "overdue").length
+        type OrderRow = { id: string; status: string; due_date: string; tower_sites: { site_name: string; region: string; county: string } | null }
+        const typedOrders: OrderRow[] = orders ?? []
+        if (typedOrders.length > 0) {
+          const total = typedOrders.length
+          const completed = typedOrders.filter((o: OrderRow) => o.status === "completed").length
+          const inProgress = typedOrders.filter((o: OrderRow) => o.status === "in_progress" || o.status === "assigned").length
+          const overdue = typedOrders.filter((o: OrderRow) => o.status === "overdue").length
 
           setKpis([
             { label: "TOTAL PM",    value: total,      icon: ClipboardList, iconColor: "text-slate-400" },
@@ -73,9 +75,8 @@ export default function DashboardPage() {
 
           // County progress (group by county/region)
           const countyMap: Record<string, { completed: number; total: number }> = {}
-          orders.forEach(o => {
-            const site = o.tower_sites as { site_name: string; region: string; county: string } | null
-            const county = site?.county || site?.region || "Unknown"
+          typedOrders.forEach((o: OrderRow) => {
+            const county = o.tower_sites?.county || o.tower_sites?.region || "Unknown"
             if (!countyMap[county]) countyMap[county] = { completed: 0, total: 0 }
             countyMap[county].total++
             if (o.status === "completed") countyMap[county].completed++
@@ -89,9 +90,8 @@ export default function DashboardPage() {
 
           // Region bar chart
           const regionMap: Record<string, number> = {}
-          orders.forEach(o => {
-            const site = o.tower_sites as { region: string } | null
-            const region = site?.region || "Unknown"
+          typedOrders.forEach((o: OrderRow) => {
+            const region = o.tower_sites?.region || "Unknown"
             regionMap[region] = (regionMap[region] || 0) + 1
           })
           setRegionChart(
@@ -101,17 +101,14 @@ export default function DashboardPage() {
           )
 
           // Recent activity (last 8)
-          const recent = [...orders]
-            .sort((a, b) => (b.due_date > a.due_date ? 1 : -1))
+          const recent = [...typedOrders]
+            .sort((a: OrderRow, b: OrderRow) => (b.due_date > a.due_date ? 1 : -1))
             .slice(0, 8)
-            .map(o => {
-              const site = o.tower_sites as { site_name: string } | null
-              return {
-                site: site?.site_name || "Unknown Site",
-                date: o.due_date,
-                status: o.status,
-              }
-            })
+            .map((o: OrderRow) => ({
+              site: o.tower_sites?.site_name || "Unknown Site",
+              date: o.due_date,
+              status: o.status,
+            }))
           setRecentActivity(recent)
         }
       } catch (err) {
