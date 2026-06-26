@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Search, Plus, MapPin, Zap, LayoutGrid, Pencil, Trash2, Calendar, User, Upload, FileText, ClipboardList, CheckSquare, Radio } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { sites, technicians } from "@/lib/data"
+import { supabase } from "@/lib/supabase"
 
 const users = [
   { id: "U-001", name: "Charles J. Karn", email: "charles@iptpowertech.com", role: "Super Admin", region: "All", status: "active" },
@@ -328,9 +329,20 @@ const emptySiteForm = () => ({ siteId: "", name: "", region: "", status: "active
 
 const SITES_KEY = "ipt_sites"
 
+// Map app type strings to Supabase tower_type enum
+const toTowerType = (t: string): string => {
+  const map: Record<string, string> = { Greenfield: "self_support", Rooftop: "rooftop", Outdoor: "guyed_tower", Indoor: "monopole" }
+  return map[t] ?? "self_support"
+}
+const fromTowerType = (t: string): string => {
+  const map: Record<string, string> = { self_support: "Greenfield", rooftop: "Rooftop", guyed_tower: "Outdoor", monopole: "Indoor", camouflaged: "Outdoor" }
+  return map[t] ?? "Greenfield"
+}
+
 function SitesTab() {
   const [siteList, setSiteList] = useState<SiteRecord[]>([...sites])
   const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState("")
   const [regionFilter, setRegionFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -341,18 +353,75 @@ function SitesTab() {
   const [importError, setImportError] = useState("")
   const [importSuccess, setImportSuccess] = useState("")
 
+  // Load from Supabase on mount, fall back to localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(SITES_KEY)
-      if (saved) setSiteList(JSON.parse(saved))
-    } catch {}
-    setLoaded(true)
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("tower_sites")
+          .select("site_id, site_name, region, county, status, tower_type")
+          .order("site_id")
+        if (!error && data && data.length > 0) {
+          // Merge Supabase rows with localStorage extras (gens/kva/panels/techs)
+          const extras: Record<string, Partial<SiteRecord>> = {}
+          try {
+            const saved = localStorage.getItem(SITES_KEY)
+            if (saved) {
+              const arr: SiteRecord[] = JSON.parse(saved)
+              arr.forEach(s => { extras[s.id] = { gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs } })
+            }
+          } catch {}
+          const merged: SiteRecord[] = data.map(row => {
+            const numId = parseInt(row.site_id) || 0
+            const ex = extras[numId] ?? {}
+            return {
+              id: numId,
+              name: row.site_name,
+              region: row.region,
+              status: row.status,
+              type: fromTowerType(row.tower_type),
+              gens: ex.gens ?? 0,
+              kva: ex.kva ?? 0,
+              panels: ex.panels ?? 0,
+              techs: ex.techs ?? "",
+            }
+          })
+          setSiteList(merged)
+          localStorage.setItem(SITES_KEY, JSON.stringify(merged))
+          setLoaded(true)
+          return
+        }
+      } catch {}
+      // Supabase unavailable — load from localStorage
+      try {
+        const saved = localStorage.getItem(SITES_KEY)
+        if (saved) setSiteList(JSON.parse(saved))
+      } catch {}
+      setLoaded(true)
+    }
+    load()
   }, [])
 
+  // Persist to localStorage whenever list changes
   useEffect(() => {
     if (!loaded) return
     localStorage.setItem(SITES_KEY, JSON.stringify(siteList))
   }, [siteList, loaded])
+
+  const upsertToSupabase = async (s: SiteRecord) => {
+    await supabase.from("tower_sites").upsert({
+      site_id: String(s.id),
+      site_name: s.name,
+      region: s.region,
+      county: s.region,
+      status: s.status as "active" | "inactive" | "under_maintenance" | "decommissioned",
+      tower_type: toTowerType(s.type) as "monopole" | "guyed_tower" | "self_support" | "rooftop" | "camouflaged",
+    }, { onConflict: "site_id" })
+  }
+
+  const deleteFromSupabase = async (id: number) => {
+    await supabase.from("tower_sites").delete().eq("site_id", String(id))
+  }
 
   const siteRegions = [...new Set(siteList.map(s => s.region))].sort()
   const nextId = () => Math.max(...siteList.map(s => s.id), 1000) + 1
@@ -371,21 +440,27 @@ function SitesTab() {
   const openEdit = (s: SiteRecord) => { setEditTarget(s); setForm({ siteId: String(s.id), name: s.name, region: s.region, status: s.status, type: s.type, gens: s.gens, kva: s.kva, panels: s.panels, techs: s.techs }); setShowModal(true) }
   const closeModal = () => { setShowModal(false); setEditTarget(null) }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.region) return
+    setSaving(true)
     const newId = parseInt(form.siteId) || nextId()
+    const record: SiteRecord = { id: newId, name: form.name, region: form.region, status: form.status, type: form.type, gens: form.gens, kva: form.kva, panels: form.panels, techs: form.techs }
     if (editTarget) {
-      setSiteList(siteList.map(s => s.id === editTarget.id ? { ...s, id: newId, name: form.name, region: form.region, status: form.status, type: form.type, gens: form.gens, kva: form.kva, panels: form.panels, techs: form.techs } : s))
+      setSiteList(siteList.map(s => s.id === editTarget.id ? record : s))
     } else {
-      setSiteList([...siteList, { id: newId, name: form.name, region: form.region, status: form.status, type: form.type, gens: form.gens, kva: form.kva, panels: form.panels, techs: form.techs }])
+      setSiteList(prev => [...prev, record])
     }
+    await upsertToSupabase(record).catch(() => {})
+    setSaving(false)
     closeModal()
   }
 
-  const handleDelete = (id: number) => setSiteList(siteList.filter(s => s.id !== id))
+  const handleDelete = async (id: number) => {
+    setSiteList(siteList.filter(s => s.id !== id))
+    await deleteFromSupabase(id).catch(() => {})
+  }
 
-  const downloadTemplate = async () => {
-    const XLSX = await import("xlsx")
+  const downloadTemplate = () => {
     const csv = "Site ID,Name,Region,Status,Type,Generators,KVA,Panels,Technicians\n1418,Baiyema,Bong,active,Greenfield,1,30,14,John Doe\n"
     const a = document.createElement("a")
     a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
@@ -437,6 +512,16 @@ function SitesTab() {
       })).filter(s => s.name)
       if (imported.length === 0) { setImportError("No valid rows found. Check column names: Name, Region, Status, Type, Generators, KVA, Panels, Technicians"); return }
       setSiteList(prev => [...prev, ...imported])
+      // Bulk upsert to Supabase
+      const upsertRows = imported.map(s => ({
+        site_id: String(s.id),
+        site_name: s.name,
+        region: s.region,
+        county: s.region,
+        status: s.status as "active" | "inactive" | "under_maintenance" | "decommissioned",
+        tower_type: toTowerType(s.type) as "monopole" | "guyed_tower" | "self_support" | "rooftop" | "camouflaged",
+      }))
+      await supabase.from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
       setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
     } catch (err) {
       console.error(err)
@@ -582,8 +667,8 @@ function SitesTab() {
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="outline" className="flex-1" onClick={closeModal}>Cancel</Button>
-              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.siteId || !form.name.trim() || !form.region}>
-                {editTarget ? "Save Changes" : "Add Site"}
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleSave} disabled={!form.siteId || !form.name.trim() || !form.region || saving}>
+                {saving ? "Saving…" : editTarget ? "Save Changes" : "Add Site"}
               </Button>
             </div>
           </div>
