@@ -166,7 +166,9 @@ function TechniciansTab() {
         })
       } else if (file.name.match(/\.(xlsx|xls)$/i)) {
         const readXlsxFile = (await import("read-excel-file/browser")).default
-        const sheets = await readXlsxFile(file); const xlsRows = sheets[0]?.data ?? []
+        // readXlsxFile returns Sheet[] where each Sheet = { sheet, data }
+        const sheets = await readXlsxFile(file)
+        const xlsRows = (sheets[0] as { data?: unknown[][] } | null)?.data ?? []
         if (xlsRows.length < 2) { setImportError("File appears empty."); return }
         const headers = xlsRows[0].map(h => String(h ?? ""))
         rows = xlsRows.slice(1).map(row => {
@@ -483,7 +485,9 @@ function SitesTab() {
         })
       } else if (file.name.match(/\.(xlsx|xls)$/i)) {
         const readXlsxFile = (await import("read-excel-file/browser")).default
-        const sheets = await readXlsxFile(file); const xlsRows = sheets[0]?.data ?? []
+        // readXlsxFile returns Sheet[] where each Sheet = { sheet, data }
+        const sheets = await readXlsxFile(file)
+        const xlsRows = (sheets[0] as { data?: unknown[][] } | null)?.data ?? []
         if (xlsRows.length < 2) { setImportError("File appears empty."); return }
         const headers = xlsRows[0].map(h => String(h ?? ""))
         rows = xlsRows.slice(1).map(row => {
@@ -507,7 +511,12 @@ function SitesTab() {
         techs:  (row["Technicians"] || row["technicians"] || "").trim(),
       })).filter(s => s.name)
       if (imported.length === 0) { setImportError("No valid rows found. Check column names: Name, Region, Status, Type, Generators, KVA, Panels, Technicians"); return }
-      setSiteList(prev => [...prev, ...imported])
+      // Merge: replace existing records with same id, append new ones
+      setSiteList(prev => {
+        const map = new Map(prev.map(s => [s.id, s]))
+        imported.forEach(s => map.set(s.id, s))
+        return Array.from(map.values())
+      })
       // Bulk upsert to Supabase
       const upsertRows = imported.map(s => ({
         site_id: String(s.id),
@@ -522,8 +531,9 @@ function SitesTab() {
         technicians: s.techs,
       }))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from("tower_sites").upsert(upsertRows, { onConflict: "site_id" }).catch(() => {})
-      setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported.`)
+      const { error: upsertErr } = await (supabase as any).from("tower_sites").upsert(upsertRows, { onConflict: "site_id" })
+      if (upsertErr) console.error("Supabase upsert error:", upsertErr)
+      setImportSuccess(`${imported.length} site${imported.length !== 1 ? "s" : ""} imported and saved.`)
     } catch (err) {
       console.error(err)
       setImportError("Failed to parse file. Check format.")
